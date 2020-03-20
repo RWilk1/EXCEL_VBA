@@ -1,0 +1,109 @@
+
+' Connection String do bazy SQL
+'Const SQL_Conn As String = "Provider=SQLNCLI11;Server=MP1836SQL1;Database=CKD_Raportowa;Trusted_Connection=yes;"
+'Const SQL_Conn As String = "Provider=sqloledb;Server=MP1836SQL1;Database=CKD_Raportowa;Trusted_Connection=yes;"
+Const SQL_Conn As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP1836SQL1;trusted_connection=yes;DATABASE=CKD_Raportowa"
+Global Data_Insertu As Date
+
+Sub INSERT_New_NRB()
+
+    Dim Conn As New ADODB.Connection
+    Dim SQL_Cmd As New ADODB.Command
+    Dim SQL_Str As String
+    Dim Pracownik As String
+    Dim NRB_Lista() As Variant
+    Dim Data_Insertu As Variant
+    
+    ' Zmienne przechowujaca wartości do INSERT-u
+    Dim Wartosci_Do_Insertu As String
+    Dim Wartosc As Variant
+    
+    ' Data pobrania paczuchy z NRB
+    Data_Insertu = VBA.Now()
+    
+    ' Pobieranie numeru kadrowego pracownika ktory aktualnie używa apki
+    Pracownik = Environ("username")
+    Pracownik = Replace(Pracownik, "BANK\", "")
+    
+    Conn.ConnectionString = SQL_Conn
+    Conn.Open
+    
+    On Error GoTo CloseConnection
+    SQL_Cmd.ActiveConnection = Conn
+    
+    ' Kontrola czy zostały wklejone jakiekolwiek NRB
+    If Worksheets("Wpisywanie_NRB").Range("B8").Value = "" Then
+        MsgBox "Nie wpisano żadnego NRB" & vbNewLine & _
+               "- w każdym bądź razie w komórce B8 nie ma żadnego!!!" & vbNewLine & _
+               "Zacznij wpisywać / wklejać nowe NRB od komórki B8", vbCritical, "BŁĄD!!!"
+        GoTo CloseConnection
+    End If
+    
+    ' Przenoszenie wszystkich wartości z wypełnionego zakresu do zmiennej obiektowej
+    Dim Zakres_Danych As Range
+    Set Zakres_Danych = Worksheets("Wpisywanie_NRB").Range("B8", Range("B8").End(xlDown))
+    
+    Dim r As Range
+    Dim i As Integer: i = 1
+
+    ' Przypisywanie wartości z wypełnonych komórek do zmiennej tablicowej
+    For Each r In Zakres_Danych
+           
+           
+        ' Sprawdzanie czy aktualnie sprawdzana komorka zawiera jeszcze jakis NRB
+        If r.Value = "" Then
+                GoTo KoniecNRB
+        End If
+        
+        ' Tworzenie kolejnych kawałeczków zapytania SQL
+        Wartosc = "(" & "'" & CStr(r.Value) & "'" & ",'" & Pracownik & "')"
+        
+        If i > 1 Then
+            Wartosc = "," & Wartosc
+        End If
+        
+        Wartosci_Do_Insertu = Wartosci_Do_Insertu & Wartosc
+        i = i + 1
+             
+        ' Komunikat o zbyt długim poleceniu SQL > 1000 NRB
+        If i > 1001 Then
+            MsgBox "Niestety wkleiłeś zbyt dużo NRB !!!" & vbNewLine & _
+               "Wklei tylko część z nich" & vbNewLine & _
+               "- za jednym razem można wkleić maks do 1 tys." & vbNewLine & _
+               "Pozostałe partie wyślij w kolejnych transferach" & vbNewLine & _
+               "Ograniczony EXCEL przeprasza cię" & vbNewLine & _
+               "że nie może załadować więcej NRB za jednym załadunkiem :)", vbCritical, "BŁĄD!!!"
+            GoTo CloseConnection
+        End If
+        
+    Next r
+        
+KoniecNRB:
+        
+    ' Tworzenie całego zapytania
+    SQL_Str = _
+        "INSERT INTO Aplikacja_TSUE.NRB_Do_Weryfikacji" & _
+        "(NRB_Klienta, Pracownik_Dokon_Insertu)" & _
+        " VALUES" & Wartosci_Do_Insertu
+       
+    ' Wysyłania polecenia SQL do SQL Serwer-a
+    SQL_Cmd.CommandText = SQL_Str
+    SQL_Cmd.Execute
+    
+        
+KoniecPetli:
+    
+    MsgBox "Wpisane przez ciebie NRB zostały załadowane do aplikacji weryfikacyjnej" & vbNewLine & _
+           "Data załadowania tej paczki (oraz jej ID) to: " & Left(CStr(Data_Insertu), 16) & vbNewLine & _
+           "Możesz teraz przejść do aplikacji służącej do weryfikacji NRB klientów", vbInformation, "PACZKA NRB ZAŁADOWANA !!!"
+
+CloseConnection:
+    Conn.Close
+                
+End Sub
+
+
+
+
+
+
