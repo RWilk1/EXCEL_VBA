@@ -1,0 +1,23 @@
+--DROP TABLE cod.Tabl_App_Awarie
+
+SELECT CAST(GETDATE() AS TIME(0))
+
+CREATE TABLE cod.Tabl_App_Awarie
+(	
+ID INT IDENTITY(1,1) PRIMARY KEY NOT NULL,
+Rodzaj_Problemu VARCHAR(20), -- awaria / utrudnienie
+Data_Rozpoczecia DATE, 
+Data_Zakonczenia DATE,
+Godzina_Rozpoczecia TIME(0),
+Godzina_Zakonczenia TIME(0),
+Opis_Problemu VARCHAR(MAX),
+Czas_Trwania_Problemu_min INT DEFAULT 0,
+Firma NVARCHAR(MAX), -- ???
+Wplyw_na_SVL VARCHAR(20) DEFAULT 'brak', -- brak / niski / sredni / znaczny / krytyczny 
+Zgloszenie_na_Igozilli VARCHAR(3), -- TAK / NIE
+ZgLoszenie_do_HD_Banku VARCHAR(3), -- TAK / NIE
+Nr_Buga INT, -- ???
+Nr_SD INT, -- ???
+Data_Rejestracji SMALLDATETIME DEFAULT(GETDATE()),
+Osoba_Rejestrujaca VARCHAR(MAX)
+)
