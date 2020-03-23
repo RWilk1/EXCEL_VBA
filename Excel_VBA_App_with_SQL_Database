@@ -124,3 +124,26 @@ Private Sub ListBox1_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
     Me.TextBox3.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 3)
     Me.TextBox4.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 4)
 End Sub
+
+' SQL
+
+Create Table testy.TBL_Customer(
+CustomerId int identity(1,1),
+CustomerName nvarchar(50),
+CustomerAddress nvarchar(100),
+MobileNumber int unique,
+EmailId nvarchar(50) Unique, 
+UpdateTimeStamp datetime default GETDATE()
+)
+
+
+INSERT INTO testy.TBL_Customer
+(CustomerName, CustomerAddress, MobileNumber, EmailId)
+VALUES
+('Rafal', 'Rzeszów', 666666666, 'rwilk@outlook.com'),
+('Paweł', 'Kraków', 777777777, 'pptak@gmail.com')
+
+
+
+SELECT * FROM testy.TBL_Customer
+--TRUNCATE TABLE testy.TBL_Customer 
