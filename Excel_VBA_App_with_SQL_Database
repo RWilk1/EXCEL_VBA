@@ -1,0 +1,126 @@
+
+Dim cnn As New ADODB.Connection
+Dim rst As New ADODB.Recordset
+Dim sql_query As String
+Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP1836SQL1;trusted_connection=yes;DATABASE=CKD_Raportowa"
+' aaa
+
+Sub Show_Data()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Support")
+
+sh.Cells.Clear
+
+' Przykład z podawaniem użytkownika i hasła
+'cnn.Open Connection_String, "sa", "abcd"
+cnn.Open Conn_String
+sql_query = "SELECT * FROM testy.TBL_Customer"
+
+rst.Open sql_query, cnn, adOpenKeyset, adLockOptimistic
+sh.Range("A2").CopyFromRecordset rst
+
+' Printowanie nagłówków
+For i = 1 To rst.Fields.Count
+    sh.Cells(1, i).Value = rst.Fields(i - 1).Name
+Next i
+
+rst.Close
+cnn.Close
+
+Dim lr As Long
+lr = sh.Range("A" & Application.Rows.Count).End(xlUp).Row
+
+If lr = 1 Then lr = 2
+Debug.Print lr
+
+With Me.ListBox1
+    .ColumnHeads = True
+    .ColumnCount = 6
+'    .ColumnWidths = "0,80,80,80,80,100"
+    .RowSource = "Support!A2:F" & lr
+End With
+
+End Sub
+
+Private Sub CommandButton4_Click()
+    Call Show_Data
+End Sub
+
+Sub Execute_SQL_Query(sql_query As Variant)
+    
+    cnn.Open Conn_String
+    cnn.Execute sql_query
+    cnn.Close
+    
+    Call Show_Data
+    Call Clear_Box
+    
+End Sub
+ 
+Sub Clear_Box()
+
+Me.TextBox1.Value = ""
+Me.TextBox2.Value = ""
+Me.TextBox3.Value = ""
+Me.TextBox4.Value = ""
+Me.TextBox5.Value = ""
+ 
+End Sub
+
+Private Sub CommandButton1_Click()
+ 
+If Me.TextBox1.Value = "" Then
+    MsgBox "Please fill in data conserning a new client"
+    Exit Sub
+End If
+ 
+Dim sql As Variant
+sql = "Insert into testy.TBL_Customer " & _
+       "(CustomerName,CustomerAddress,MobileNumber,EmailId)" & _
+       " Values ('" & Me.TextBox1.Value & "','" & Me.TextBox2.Value & _
+       "'," & Me.TextBox3.Value & ",'" & Me.TextBox4.Value & "')"
+       
+    Call Execute_SQL_Query(sql)
+    
+End Sub
+
+Private Sub CommandButton2_Click()
+ 
+    If Me.TextBox5.Value = "" Then
+        MsgBox "Please double click on a record to update"
+        Exit Sub
+    End If
+ 
+    sql = "Update testy.TBL_Customer " & _
+            "Set CustomerName = '" & Me.TextBox1.Value & "', " & _
+            "CustomerAddress = '" & Me.TextBox2.Value & "', " & _
+            "MobileNumber = " & Me.TextBox3.Value & ", " & _
+            "EmailId = '" & Me.TextBox4.Value & "' " & _
+            ",UpdateTimeStamp=GETDATE() " & _
+            "Where CustomerId = " & Me.TextBox5.Value
+             
+    Call Execute_SQL_Query(sql)
+      
+End Sub
+ 
+Private Sub CommandButton3_Click()
+ 
+    If Me.ListBox1.ListIndex < 0 Then
+        MsgBox "Please select a record to delete"
+        Exit Sub
+    End If
+ 
+    sql = "Delete from testy.TBL_Customer Where CustomerId = " & Me.ListBox1.List(Me.ListBox1.ListIndex, 0)
+             
+    Call Execute_SQL_Query(sql)
+      
+End Sub
+
+Private Sub ListBox1_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+    Me.TextBox5.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 0)
+    Me.TextBox1.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 1)
+    Me.TextBox2.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 2)
+    Me.TextBox3.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 3)
+    Me.TextBox4.Value = Me.ListBox1.List(Me.ListBox1.ListIndex, 4)
+End Sub
