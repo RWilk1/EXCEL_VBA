@@ -1,0 +1,58 @@
+
+Private Sub CommandButton1_Click()
+
+' Walidacja danych po 24:00 nie można wpisywać żadnych minut
+If txt_godz_start.Value = 24 Then
+    txt_minuta_start = "0"
+End If
+
+' Poprawa wyświetlania wybranych wartości
+If Len(txt_godz_start.Value) = 1 Then
+    txt_godz_start.Value = "0" & txt_godz_start.Value
+End If
+
+If Len(txt_minuta_start.Value) = 1 Then
+    txt_minuta_start.Value = txt_minuta_start.Value & "0"
+End If
+
+' Printowanie wybranych wartości do pól tekstowych
+If Start_Koniec.Value = 0 Then
+    App_Awarie.txt_Start_Godz.Value = _
+        txt_godz_start.Value & ":" & txt_minuta_start
+    Unload Me
+Else
+    App_Awarie.txt_Koniec_Godz.Value = _
+        txt_godz_start.Value & ":" & txt_minuta_start
+    Unload Me
+End If
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+txt_godz_start.Text = Mid(Now(), 12, 2)
+txt_minuta_start.Text = Mid(Now(), 15, 2)
+    
+End Sub
+
+Private Sub SpinButton1_Change()
+    
+    txt_godz_start.Text = SpinButton1.Value
+    
+End Sub
+
+Private Sub SpinButton2_Change()
+    
+    txt_minuta_start.Text = SpinButton2.Value
+    
+End Sub
+
+'Function Selected_Date(Optional TargetControl As Object) As String
+'
+'zegar.Show
+'
+'Selected_Date = zegar.TextBox1.Value
+'
+'End Function
+
+
