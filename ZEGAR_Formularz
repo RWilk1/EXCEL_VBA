@@ -1,4 +1,11 @@
 
+' txt_godz_start
+' SpinButton1
+' txt_minuta_start
+' SpinButton2
+' CommandButton1
+' Start_Koniec - text box ukryty
+
 ' Zmienna wskażnikowa informująca o wystąpieniu błędu
 Public Czy_Blad As Integer
 ''''''''''''''''''''''''''''''''''
