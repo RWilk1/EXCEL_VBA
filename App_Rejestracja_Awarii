@@ -1,0 +1,111 @@
+
+txt_Start_Date
+img_StartDate
+txt_Start_Godz
+img_Start_Godz
+
+txt_End_Date
+img_EndDate
+txt_Koniec_Godz
+img_Koniec_Godz
+
+txt_Czas_Trwania
+
+
+
+''''''''''''''''''''''''''''''''
+Dim Data_Start As Date
+Dim Data_Koniec As Date
+'''''''''''''''''''''''''''''
+
+Private Sub Image2_Click()
+
+End Sub
+
+Private Sub img_StartDate_Click()
+    
+Data_Start = Format(CDate(txt_Start_Date.Value), "DD-MM-YYYY")
+    
+Me.txt_Start_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
+    
+Call Kontr_Data_Start(Data_Start)
+    
+End Sub
+
+Private Sub img_EndDate_Click()
+
+Data_Koniec = Format(CDate(txt_End_Date.Value), "DD-MM-YYYY")
+
+Me.txt_End_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
+
+Call Kontr_Data_Koniec(Data_Koniec)
+
+End Sub
+
+Private Sub img_Start_Godz_Click()
+    
+zegar.Start_Koniec.Value = 0
+zegar.Show
+    
+End Sub
+
+Private Sub img_Koniec_Godz_Click()
+    
+zegar.Start_Koniec.Value = 1
+zegar.Show
+    
+End Sub
+
+Private Sub OptionButton1_Click()
+
+If OptionButton1 = True Then
+    MsgBox "Awaria"
+End If
+    
+End Sub
+
+Private Sub OptionButton2_Click()
+
+If OptionButton2 = True Then
+    MsgBox "Utrudnienie"
+End If
+
+End Sub
+
+Private Sub txt_End_Date_Change()
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
+Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
+
+App_Awarie.txt_Start_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+
+App_Awarie.txt_Koniec_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+    
+End Sub
+
+Sub Kontr_Data_Start(Data_Start As Date)
+
+' Kontrola wpisywanych dat
+If CDate(txt_Start_Date.Value) > CDate(txt_End_Date.Value) Then
+    MsgBox "Wpisana data początkowa jest póżniejsza od daty końcowej!!!" & vbCrLf _
+        & "Wybierz poprawną datę", vbCritical
+    Me.txt_Start_Date.Value = Format(Data_Start, "DD-MM-YYYY")
+End If
+
+End Sub
+
+Sub Kontr_Data_Koniec(Data_Koniec As Date)
+
+If CDate(txt_End_Date.Value) < CDate(txt_Start_Date.Value) Then
+    MsgBox "Wpisana data końcowa jest wcześniejsza od daty początkowej!!!" & vbCrLf _
+        & "Wybierz poprawną datę", vbCritical
+    Me.txt_End_Date.Value = Format(Data_Koniec, "DD-MM-YYYY")
+End If
+    
+End Sub
