@@ -1,10 +1,23 @@
 
+' Zmienna wskażnikowa informująca o wystąpieniu błędu
+Public Czy_Blad As Integer
+''''''''''''''''''''''''''''''''''
+
 Private Sub CommandButton1_Click()
+
+Czy_Blad = 0
 
 ' Walidacja danych po 24:00 nie można wpisywać żadnych minut
 If txt_godz_start.Value = 24 Then
-    txt_minuta_start = "0"
+    txt_minuta_start.Value = "0"
 End If
+
+' Czy błąd
+Call Kontr_Godz(Me.Start_Koniec.Value)
+
+' Jeśli wystąpił błąd to koniec procedurki
+If Czy_Blad = 1 Then Exit Sub
+
 
 ' Poprawa wyświetlania wybranych wartości
 If Len(txt_godz_start.Value) = 1 Then
@@ -16,13 +29,15 @@ If Len(txt_minuta_start.Value) = 1 Then
 End If
 
 ' Printowanie wybranych wartości do pól tekstowych
-If Start_Koniec.Value = 0 Then
+If Me.Start_Koniec.Value = 0 Then
     App_Awarie.txt_Start_Godz.Value = _
         txt_godz_start.Value & ":" & txt_minuta_start
+        Exit Sub
     Unload Me
 Else
     App_Awarie.txt_Koniec_Godz.Value = _
         txt_godz_start.Value & ":" & txt_minuta_start
+        Exit Sub
     Unload Me
 End If
 
@@ -47,12 +62,52 @@ Private Sub SpinButton2_Change()
     
 End Sub
 
-'Function Selected_Date(Optional TargetControl As Object) As String
-'
-'zegar.Show
-'
-'Selected_Date = zegar.TextBox1.Value
-'
-'End Function
+Private Function Kontr_Godz(Start_Koniec As Integer)
 
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
 
+'Data_Godz_Start = App_Awarie.txt_Start_Date.Value & " " & App_Awarie.txt_Start_Godz.Value
+'Data_Godz_Koniec = App_Awarie.txt_End_Date.Value & " " & App_Awarie.txt_Koniec_Godz.Value
+
+' W przypadku ustalania godziny początkowej
+If Start_Koniec = 0 Then
+    Data_Godz_Start = App_Awarie.txt_Start_Date.Value & " " & Me.txt_godz_start.Value & ":" & Me.txt_minuta_start.Value
+    Data_Godz_Koniec = App_Awarie.txt_End_Date.Value & " " & App_Awarie.txt_Koniec_Godz.Value
+End If
+
+' W przypadku ustalania godziny końcowej
+If Start_Koniec = 1 Then
+    Data_Godz_Start = App_Awarie.txt_Start_Date.Value & " " & App_Awarie.txt_Start_Godz.Value
+    Data_Godz_Koniec = App_Awarie.txt_End_Date.Value & " " & Me.txt_godz_start.Value & ":" & Me.txt_minuta_start.Value
+End If
+
+Debug.Print Data_Godz_Start
+Debug.Print Data_Godz_Koniec
+Debug.Print Me.Start_Koniec.Value
+Debug.Print Czy_Blad
+
+' Godzina Startowa
+If Me.Start_Koniec.Value = 0 Then
+   ' Kontrola wpisywanych godz.
+    If CDate(Data_Godz_Start) > CDate(Data_Godz_Koniec) Then
+        MsgBox "Wpisana data i godzina początkowa jest póżniejsza od daty i godziny końcowej!!!" & vbCrLf _
+            & "Wybierz poprawną datę i godzinę", vbCritical
+        Czy_Blad = 1
+        Exit Function
+    End If
+    
+End If
+
+If Me.Start_Koniec.Value = 1 Then
+   ' Kontrola wpisywanych godz.
+    If CDate(Data_Godz_Koniec) < CDate(Data_Godz_Start) Then
+        MsgBox "Wpisana data i godzina końcowa jest wcześniejsza od daty i godziny początkowej!!!" & vbCrLf _
+            & "Wybierz poprawną datę i godzinę", vbCritical
+        Czy_Blad = 1
+        Exit Function
+    End If
+    
+End If
+
+End Function
