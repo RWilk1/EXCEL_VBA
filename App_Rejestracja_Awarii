@@ -11,6 +11,19 @@ img_Koniec_Godz
 
 txt_Czas_Trwania
 
+txt_Opis_Utrudnienia
+txt_Opis_Utrud_Liczba_Znak
+
+cmd_Zapisz_Nowa_Awarie
+cmd_Modyfikacja
+
+cmd_Tryb
+img_Tryb_Update
+img_Tryb_Insert
+txt_ID
+txt_Tryb
+
+lst_Lista_Awarii
 
 
 ''''''''''''''''''''''''''''''''
@@ -18,8 +31,167 @@ Dim Data_Start As Date
 Dim Data_Koniec As Date
 '''''''''''''''''''''''''''''
 
-Private Sub Image2_Click()
+Private Sub cmd_Tryb_Click()
 
+If Me.cmd_Tryb.Caption = "TRYB DODAWANIA" Then
+        If Me.txt_ID.Value = "" Then
+        MsgBox "Żeby coś zmodyfikować musisz najpier wybrać jakąś awarie", vbCritical
+        Exit Sub
+    End If
+    Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI"
+    Me.txt_Tryb.Value = 2
+    Me.cmd_Zapisz_Nowa_Awarie.Enabled = True
+    Me.img_Tryb_Insert.Visible = False
+    Me.img_Tryb_Update.Visible = True
+    Exit Sub
+End If
+
+If Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI" Then
+    Me.cmd_Tryb.Caption = "TRYB DODAWANIA"
+    Me.txt_Tryb.Value = 1
+    Me.txt_ID.Value = ""
+    Me.img_Tryb_Insert.Visible = True
+    Me.img_Tryb_Update.Visible = False
+    Me.lst_Lista_Awarii.ListIndex = -1
+    Me.cmd_Modyfikacja.Enabled = False
+    Me.cmd_Zapisz_Nowa_Awarie.Enabled = True
+    Exit Sub
+End If
+
+End Sub
+
+Private Sub txt_ID_Change()
+' Jeśli pole nie jest puste to wówczas przycisk do zmiany trybu z Dodania na modyfikacje staje się możliwe
+'If Me.txt_ID.Value <> "" Then
+'    Me.cmd_Tryb.Enabled = True
+'End If
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
+Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
+Me.txt_Opis_Utrud_Liczba_Znak.Value = 0
+
+App_Awarie.txt_Start_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+
+App_Awarie.txt_Koniec_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+     
+''''''''''''''''''''''''''''''''
+' ComboBox - stopień utrudnień SVL
+Dim Lista_Wartosci(1 To 5, 1 To 2) As String
+
+Lista_Wartosci(1, 1) = "Brak"
+Lista_Wartosci(2, 1) = "Niski"
+Lista_Wartosci(3, 1) = "Średni"
+Lista_Wartosci(4, 1) = "Znaczący"
+Lista_Wartosci(5, 1) = "Krytyczny"
+
+Lista_Wartosci(1, 2) = "Nie ma wpływu na SVL"
+Lista_Wartosci(2, 2) = "Gdy pytania są zadawane sporadycznie"
+Lista_Wartosci(3, 2) = "Gdy pytania są bardzo częste, rośnie skala ruchu, wynik SVL spadają"
+Lista_Wartosci(4, 2) = "Gdy pytania są zadawane sporadycznie"
+Lista_Wartosci(5, 2) = "Sytuacja lawinowego wzrostu połączeń i pytań klientów"
+
+cbo_Wplyw_SVL.List = Lista_Wartosci
+Me.cbo_Wplyw_SVL.ListIndex = 0
+     
+''''''''''''''''''''''''''''''''
+' Wartosci domyślne
+Me.txt_Uzytkownik.Value = CStr(Environ("Username"))
+Me.opt_Awaria.Value = False
+Me.opt_Utrudnienie.Value = False
+Me.opt_Wplyw_SVL_1.Value = True
+
+Me.cmd_Tryb.Caption = "TRYB DODAWANIA"
+' wskażnik dodawania / modyfikacji nowych rekordów (1 dodawanie | 2 modyfikacja)
+Me.txt_Tryb.Value = 1
+
+Me.img_Tryb_Insert.Visible = True
+Me.img_Tryb_Update.Visible = False
+Me.cmd_Modyfikacja.Enabled = False
+Me.cmd_Tryb.Enabled = False
+Me.cmd_Modyfikacja.Enabled = False
+' Odświeżanie ListBox-a
+Call Odswiezanie_ListBox
+     
+End Sub
+
+Private Sub cmd_Zapisz_Nowa_Awarie_Click()
+' Sprawdzanie, czy przycisk save nie zostal naciśnięty przez przypadek
+If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
+    MsgBox "Żeby zapisać nową awarię / utrudnienie zaznacz rodzaj problemu" & vbNewLine & _
+            "przycisk: Awaria lub Utrudnienie", vbCritical
+    Exit Sub
+End If
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Zapisywanie danych do bazy danych
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Baza_Awarie")
+
+' nr wiersza w którym będą zapisywane dane dotyczące nowej awarii
+Dim lr As Long
+lr = Application.WorksheetFunction.CountA(sh.Range("A:A"))
+Debug.Print "nr. wiersza: " & lr
+
+' Printowanie numeru wiersza, który będzie numerem porządkowym
+sh.Range("A" & lr + 1).Value = lr
+
+' Rodzaj problemu
+If Me.opt_Awaria.Value = True Then
+    sh.Range("B" & lr + 1).Value = "Awaria"
+Else
+    sh.Range("B" & lr + 1).Value = "Utrudnienie"
+End If
+
+' Data i godzina rozpoczęcia
+sh.Range("C" & lr + 1).Value = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Value
+' Data i godzina zakończenia
+sh.Range("D" & lr + 1).Value = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+' Opis problemu
+sh.Range("E" & lr + 1).Value = Mid(Me.txt_Opis_Utrudnienia.Value, 1, 1000)
+' Czas trwania problemu w minutach
+sh.Range("F" & lr + 1).Value = Me.txt_Czas_Trwania.Value
+
+' Wpływ na SVL
+If Me.opt_Wplyw_SVL_1.Value = True Then
+    sh.Range("G" & lr + 1).Value = "Brak"
+ElseIf Me.opt_Wplyw_SVL_2.Value = True Then
+    sh.Range("G" & lr + 1).Value = "Niski"
+ElseIf Me.opt_Wplyw_SVL_3.Value = True Then
+    sh.Range("G" & lr + 1).Value = "Sredni"
+ElseIf Me.opt_Wplyw_SVL_4.Value = True Then
+    sh.Range("G" & lr + 1).Value = "Znaczacy"
+ElseIf Me.opt_Wplyw_SVL_5.Value = True Then
+    sh.Range("G" & lr + 1).Value = "Krytyczny"
+End If
+    
+' Data rejestracji
+sh.Range("H" & lr + 1).Value = Format(Now(), "DD-MM-YYYY hh:mm")
+' Osoba rejestrująca
+sh.Range("I" & lr + 1).Value = Me.txt_Uzytkownik.Value
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Procedurka odswiezająca ListBox-a
+Call Odswiezanie_ListBox
+
+End Sub
+
+Private Sub txt_Start_Date_Change()
+    Call Oblicz_Dlug_Trw_Utrud
+End Sub
+Private Sub txt_End_Date_Change()
+    Call Oblicz_Dlug_Trw_Utrud
+End Sub
+Private Sub txt_Start_Godz_Change()
+    Call Oblicz_Dlug_Trw_Utrud
+End Sub
+Private Sub txt_Koniec_Godz_Change()
+    Call Oblicz_Dlug_Trw_Utrud
 End Sub
 
 Private Sub img_StartDate_Click()
@@ -29,6 +201,7 @@ Data_Start = Format(CDate(txt_Start_Date.Value), "DD-MM-YYYY")
 Me.txt_Start_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
     
 Call Kontr_Data_Start(Data_Start)
+Call Oblicz_Dlug_Trw_Utrud
     
 End Sub
 
@@ -39,6 +212,7 @@ Data_Koniec = Format(CDate(txt_End_Date.Value), "DD-MM-YYYY")
 Me.txt_End_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
 
 Call Kontr_Data_Koniec(Data_Koniec)
+Call Oblicz_Dlug_Trw_Utrud
 
 End Sub
 
@@ -56,37 +230,20 @@ zegar.Show
     
 End Sub
 
-Private Sub OptionButton1_Click()
+Private Sub opt_Awaria_Click()
 
-If OptionButton1 = True Then
-    MsgBox "Awaria"
-End If
+'If OptionButton1 = True Then
+'    MsgBox "Awaria"
+'End If
     
 End Sub
 
-Private Sub OptionButton2_Click()
+Private Sub opt_Utrudnienie_Click()
 
-If OptionButton2 = True Then
-    MsgBox "Utrudnienie"
-End If
+'If OptionButton2 = True Then
+'    MsgBox "Utrudnienie"
+'End If
 
-End Sub
-
-Private Sub txt_End_Date_Change()
-
-End Sub
-
-Private Sub UserForm_Initialize()
-
-Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
-Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
-
-App_Awarie.txt_Start_Godz.Text = _
-    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
-
-App_Awarie.txt_Koniec_Godz.Text = _
-    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
-    
 End Sub
 
 Sub Kontr_Data_Start(Data_Start As Date)
@@ -109,3 +266,174 @@ If CDate(txt_End_Date.Value) < CDate(txt_Start_Date.Value) Then
 End If
     
 End Sub
+
+Private Sub Oblicz_Dlug_Trw_Utrud()
+
+' Uzupełnianie textbox-ów w przypadku inicjalizacji aplikacji
+If Me.txt_Start_Date.Value = "" Then
+    Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
+End If
+
+If Me.txt_End_Date.Value = "" Then
+    Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
+End If
+
+If Me.txt_Start_Godz.Text = "" Then
+    Me.txt_Start_Godz.Text = CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+End If
+
+If Me.txt_Koniec_Godz.Text = "" Then
+    Me.txt_Koniec_Godz.Text = CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+End If
+
+''''''''''''''''''''''''''''''''''''''''''''''''
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Dim Czas_trw_Utrud As Variant
+
+' tworzenie z tych dat jednej zmiennej "datowej"
+Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+  
+Czas_trw_Utrud = DateDiff("n", CDate(Data_Godz_Start), CDate(Data_Godz_Koniec))
+
+' Długość trwania utrudnienia w minutach
+Me.txt_Czas_Trwania.Value = Czas_trw_Utrud
+
+End Sub
+
+Private Sub txt_Opis_Utrudnienia_Change()
+
+Dim Dlugosc_Opisu As Integer
+Dlugosc_Opisu = Len(Me.txt_Opis_Utrudnienia.Text)
+
+Me.txt_Opis_Utrud_Liczba_Znak.Value = Dlugosc_Opisu
+    
+End Sub
+
+Private Sub Odswiezanie_ListBox()
+
+Dim sh As Worksheet
+Dim lr As Long
+
+Set sh = ThisWorkbook.Sheets("Baza_Awarie")
+lr = Application.WorksheetFunction.CountA(sh.Range("A:A"))
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Sortowanie tabeli z danymi wejściowych, żeby na samym początku zawszy wyświetlała się awaria ostatnio dodana
+Dim tbl As ListObject
+Dim sortcolumn As Range
+
+Set tbl = sh.ListObjects("Baza_Awarie")
+Set sortcolumn = Range("Baza_Awarie[Lp.]")
+
+With tbl.Sort
+   .SortFields.Clear
+   .SortFields.Add Key:=sortcolumn, SortOn:=xlSortOnValues, Order:=xlDescending
+   .Header = xlYes
+   .Apply
+End With
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Odświeżanie listy z awariami w ListBox-ie
+If lr = 1 Then lr = 2
+
+With Me.lst_Lista_Awarii
+    .ColumnCount = 9
+    .ColumnHeads = True
+    .ColumnWidths = "30;90;90;90;80;140;80;90;120"
+    .RowSource = sh.Name & "!A2:I" & lr
+End With
+
+End Sub
+
+' Podwójne kliknięcie na elemencie ListBox
+Private Sub lst_Lista_Awarii_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+
+' Oznaczanie zmiany trybu
+Me.cmd_Tryb.Enabled = True
+Me.cmd_Modyfikacja.Enabled = True
+Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI"
+Me.txt_Tryb.Value = 2
+Me.img_Tryb_Insert.Visible = False
+Me.img_Tryb_Update.Visible = True
+
+' Uaktywnienie przycisku MODYFIKUJ
+Me.cmd_Modyfikacja.Enabled = True
+' Ukrycie przycisku zapis
+Me.cmd_Zapisz_Nowa_Awarie.Enabled = False
+
+
+' Wybór rekordu, jego numer identyfikacyjny w tabeli w EXCEL-u
+Me.txt_ID.Value = Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 0)
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Czy AWARIA / UTRUDNIENIE
+If Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 1) = "Awaria" Then
+    Me.opt_Awaria.Value = True
+    Me.opt_Utrudnienie.Value = False
+Else
+    Me.opt_Awaria.Value = False
+    Me.opt_Utrudnienie.Value = True
+End If
+
+' Data rozpoczęcia
+Me.txt_Start_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 1, 10)
+Me.txt_Start_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 12, 5)
+
+' Data rozpoczęcia
+Me.txt_End_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 1, 10)
+Me.txt_Koniec_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 12, 5)
+
+' Opis problemu
+Me.txt_Opis_Utrudnienia.Value = Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 4)
+
+' Wpływ na SVL
+If Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 1) = "Brak" Then
+    Me.opt_Wplyw_SVL_1.Value = True
+    Me.opt_Wplyw_SVL_2.Value = False
+    Me.opt_Wplyw_SVL_3.Value = False
+    Me.opt_Wplyw_SVL_4.Value = False
+    Me.opt_Wplyw_SVL_5.Value = False
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 1) = "Niski" Then
+    Me.opt_Wplyw_SVL_1.Value = False
+    Me.opt_Wplyw_SVL_2.Value = True
+    Me.opt_Wplyw_SVL_3.Value = False
+    Me.opt_Wplyw_SVL_4.Value = False
+    Me.opt_Wplyw_SVL_5.Value = False
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Średni" Then
+    Me.opt_Wplyw_SVL_1.Value = False
+    Me.opt_Wplyw_SVL_2.Value = False
+    Me.opt_Wplyw_SVL_3.Value = True
+    Me.opt_Wplyw_SVL_4.Value = False
+    Me.opt_Wplyw_SVL_5.Value = False
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Znaczący" Then
+    Me.opt_Wplyw_SVL_1.Value = False
+    Me.opt_Wplyw_SVL_2.Value = False
+    Me.opt_Wplyw_SVL_3.Value = False
+    Me.opt_Wplyw_SVL_4.Value = True
+    Me.opt_Wplyw_SVL_5.Value = False
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Krytyczny" Then
+    Me.opt_Wplyw_SVL_1.Value = False
+    Me.opt_Wplyw_SVL_2.Value = False
+    Me.opt_Wplyw_SVL_3.Value = False
+    Me.opt_Wplyw_SVL_4.Value = False
+    Me.opt_Wplyw_SVL_5.Value = True
+End If
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Wyszukiwanie rekordu
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Baza_Awarie")
+
+'Me.txt_Rate.Value = Application.WorksheetFunction.VLookup(Me.cmd_Product, sh.Range("B:D"), 2, 0)
+
+'Me.cmd_Product.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 1)
+'Me.txt_Qty.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 3)
+'Me.cmb_Type.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 2)
+'Me.txt.Rate.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 4)
+
+'Me.txt_Date.Value = Format(Me.ListBox2.List(Me.ListBox2.ListIndex, 7), "D-MMM-YYYY")
+
+End Sub
+
