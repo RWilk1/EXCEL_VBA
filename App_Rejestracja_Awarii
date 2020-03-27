@@ -20,8 +20,10 @@ cmd_Modyfikacja
 cmd_Tryb
 img_Tryb_Update
 img_Tryb_Insert
+
 txt_ID
 txt_Tryb
+txt_Uzytkownik
 
 lst_Lista_Awarii
 
