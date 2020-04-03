@@ -28,26 +28,103 @@ txt_Uzytkownik
 lst_Lista_Awarii
 
 
-''''''''''''''''''''''''''''''''
 Dim Data_Start As Date
 Dim Data_Koniec As Date
-'''''''''''''''''''''''''''''
+Dim cnn As New ADODB.Connection
+Dim rst As New ADODB.Recordset
+Dim Sql_Query As String
+Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP1836SQL1;trusted_connection=yes;DATABASE=CKD_Raportowa"
+Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
+Const Arkusz_Danych_EXCEL As String = "Baza_Awarie"
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Private Sub cmd_Tryb_Click()
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+' Uruchamianie aplikacji
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub UserForm_Initialize()
+    ' Ustawiani wartosci domyślne
+    Call Wartosci_Domyslne
+    ' Pobieranie nowych / odświeżonych danych do EXCEL-a z SQL Server-a
+    Call Pobieranie_Danych_SQL_Server
+    ' Odświeżanie ListBox-a
+    Call Odswiezanie_ListBox
+End Sub
 
-If Me.cmd_Tryb.Caption = "TRYB DODAWANIA" Then
-        If Me.txt_ID.Value = "" Then
-        MsgBox "Żeby coś zmodyfikować musisz najpier wybrać jakąś awarie", vbCritical
-        Exit Sub
-    End If
-    Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI"
-    Me.txt_Tryb.Value = 2
-    Me.cmd_Zapisz_Nowa_Awarie.Enabled = True
-    Me.img_Tryb_Insert.Visible = False
-    Me.img_Tryb_Update.Visible = True
+' Usuwanie awarii - w zasadzie to ukrywanie żeby się nie wyświetlała
+Private Sub cmd_Usuwanie_Click()
+
+' Sprawdzanie czy został wybranY jakiś rekord
+If Me.txt_ID.Value = "" Then
     Exit Sub
 End If
 
+' Sprawdzanie, czy przycisk USUŃ nie zostal naciśnięty przez przypadek
+' Komunikat z potwierdzeniem zamiaru usunięcia awarii
+Potwierdzenie = MsgBox("Czy na pewno chcesz usunąć ten rekord?", vbYesNo + vbQuestion)
+If Potwierdzenie = vbNo Then
+    Exit Sub
+End If
+
+' Usuwanie danych z bazy SQL Server
+Call Delete_SQL
+Call Pobieranie_Danych_SQL_Server
+Call Odswiezanie_ListBox
+
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Zapisywanie nowych awarii / utrudnień
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Sub cmd_Zapisz_Nowa_Awarie_Click()
+
+' Sprawdzanie, czy przycisk save nie zostal naciśnięty przez przypadek
+If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
+    MsgBox "Żeby zapisać nową awarię / utrudnienie zaznacz rodzaj problemu" & vbNewLine & _
+            "przycisk: Awaria lub Utrudnienie", vbCritical
+    Exit Sub
+End If
+
+' Zapisywanie do SQL Servera
+Call Insert_SQL
+' Odświeżanie danych
+Call Pobieranie_Danych_SQL_Server
+' Procedurka odswiezająca ListBox-a
+Call Odswiezanie_ListBox
+
+End Sub
+
+Private Sub cmd_Modyfikacja_Click()
+
+' Update do bazy danych
+Call Update_SQL
+' Odświeżanie danych
+Call Pobieranie_Danych_SQL_Server
+' Procedurka odswiezająca ListBox-a
+Call Odswiezanie_ListBox
+
+End Sub
+
+Private Sub cmd_Tryb_Click()
+
+' Zmiana z trybu dodawania na modyfikacje
+If Me.cmd_Tryb.Caption = "TRYB DODAWANIA" Then
+
+    If Me.txt_ID.Value = "" Then
+        MsgBox "Żeby coś zmodyfikować musisz najpier wybrać jakąś awarie", vbCritical
+        Exit Sub
+    End If
+    
+    Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI"
+    Me.txt_Tryb.Value = 2
+    Me.cmd_Zapisz_Nowa_Awarie.Enabled = True
+    Me.cmd_Usuwanie.Enabled = True
+    Me.img_Tryb_Insert.Visible = False
+    Me.img_Tryb_Update.Visible = True
+    
+    Exit Sub
+End If
+
+' Zmiana z trybu modyfikacji na dodawanie
 If Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI" Then
     Me.cmd_Tryb.Caption = "TRYB DODAWANIA"
     Me.txt_Tryb.Value = 1
@@ -57,132 +134,16 @@ If Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI" Then
     Me.lst_Lista_Awarii.ListIndex = -1
     Me.cmd_Modyfikacja.Enabled = False
     Me.cmd_Zapisz_Nowa_Awarie.Enabled = True
-    Exit Sub
-End If
-
-End Sub
-
-Private Sub txt_ID_Change()
-' Jeśli pole nie jest puste to wówczas przycisk do zmiany trybu z Dodania na modyfikacje staje się możliwe
-'If Me.txt_ID.Value <> "" Then
-'    Me.cmd_Tryb.Enabled = True
-'End If
-
-End Sub
-
-Private Sub UserForm_Initialize()
-
-Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
-Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
-Me.txt_Opis_Utrud_Liczba_Znak.Value = 0
-
-App_Awarie.txt_Start_Godz.Text = _
-    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
-
-App_Awarie.txt_Koniec_Godz.Text = _
-    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
-     
-''''''''''''''''''''''''''''''''
-' ComboBox - stopień utrudnień SVL
-Dim Lista_Wartosci(1 To 5, 1 To 2) As String
-
-Lista_Wartosci(1, 1) = "Brak"
-Lista_Wartosci(2, 1) = "Niski"
-Lista_Wartosci(3, 1) = "Średni"
-Lista_Wartosci(4, 1) = "Znaczący"
-Lista_Wartosci(5, 1) = "Krytyczny"
-
-Lista_Wartosci(1, 2) = "Nie ma wpływu na SVL"
-Lista_Wartosci(2, 2) = "Gdy pytania są zadawane sporadycznie"
-Lista_Wartosci(3, 2) = "Gdy pytania są bardzo częste, rośnie skala ruchu, wynik SVL spadają"
-Lista_Wartosci(4, 2) = "Gdy pytania są zadawane sporadycznie"
-Lista_Wartosci(5, 2) = "Sytuacja lawinowego wzrostu połączeń i pytań klientów"
-
-cbo_Wplyw_SVL.List = Lista_Wartosci
-Me.cbo_Wplyw_SVL.ListIndex = 0
-     
-''''''''''''''''''''''''''''''''
-' Wartosci domyślne
-Me.txt_Uzytkownik.Value = CStr(Environ("Username"))
-Me.opt_Awaria.Value = False
-Me.opt_Utrudnienie.Value = False
-Me.opt_Wplyw_SVL_1.Value = True
-
-Me.cmd_Tryb.Caption = "TRYB DODAWANIA"
-' wskażnik dodawania / modyfikacji nowych rekordów (1 dodawanie | 2 modyfikacja)
-Me.txt_Tryb.Value = 1
-
-Me.img_Tryb_Insert.Visible = True
-Me.img_Tryb_Update.Visible = False
-Me.cmd_Modyfikacja.Enabled = False
-Me.cmd_Tryb.Enabled = False
-Me.cmd_Modyfikacja.Enabled = False
-' Odświeżanie ListBox-a
-Call Odswiezanie_ListBox
-     
-End Sub
-
-Private Sub cmd_Zapisz_Nowa_Awarie_Click()
-' Sprawdzanie, czy przycisk save nie zostal naciśnięty przez przypadek
-If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
-    MsgBox "Żeby zapisać nową awarię / utrudnienie zaznacz rodzaj problemu" & vbNewLine & _
-            "przycisk: Awaria lub Utrudnienie", vbCritical
-    Exit Sub
-End If
-
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Zapisywanie danych do bazy danych
-Dim sh As Worksheet
-Set sh = ThisWorkbook.Sheets("Baza_Awarie")
-
-' nr wiersza w którym będą zapisywane dane dotyczące nowej awarii
-Dim lr As Long
-lr = Application.WorksheetFunction.CountA(sh.Range("A:A"))
-Debug.Print "nr. wiersza: " & lr
-
-' Printowanie numeru wiersza, który będzie numerem porządkowym
-sh.Range("A" & lr + 1).Value = lr
-
-' Rodzaj problemu
-If Me.opt_Awaria.Value = True Then
-    sh.Range("B" & lr + 1).Value = "Awaria"
-Else
-    sh.Range("B" & lr + 1).Value = "Utrudnienie"
-End If
-
-' Data i godzina rozpoczęcia
-sh.Range("C" & lr + 1).Value = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Value
-' Data i godzina zakończenia
-sh.Range("D" & lr + 1).Value = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
-' Opis problemu
-sh.Range("E" & lr + 1).Value = Mid(Me.txt_Opis_Utrudnienia.Value, 1, 1000)
-' Czas trwania problemu w minutach
-sh.Range("F" & lr + 1).Value = Me.txt_Czas_Trwania.Value
-
-' Wpływ na SVL
-If Me.opt_Wplyw_SVL_1.Value = True Then
-    sh.Range("G" & lr + 1).Value = "Brak"
-ElseIf Me.opt_Wplyw_SVL_2.Value = True Then
-    sh.Range("G" & lr + 1).Value = "Niski"
-ElseIf Me.opt_Wplyw_SVL_3.Value = True Then
-    sh.Range("G" & lr + 1).Value = "Sredni"
-ElseIf Me.opt_Wplyw_SVL_4.Value = True Then
-    sh.Range("G" & lr + 1).Value = "Znaczacy"
-ElseIf Me.opt_Wplyw_SVL_5.Value = True Then
-    sh.Range("G" & lr + 1).Value = "Krytyczny"
-End If
+    Me.cmd_Usuwanie.Enabled = False
     
-' Data rejestracji
-sh.Range("H" & lr + 1).Value = Format(Now(), "DD-MM-YYYY hh:mm")
-' Osoba rejestrująca
-sh.Range("I" & lr + 1).Value = Me.txt_Uzytkownik.Value
-
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Procedurka odswiezająca ListBox-a
-Call Odswiezanie_ListBox
+    ' Ustawianie wartości domyślnych
+    Call Wartosci_Domyslne
+    
+    Exit Sub
+End If
 
 End Sub
-
+' Przy zmianie wartości daty lub godziny ponownie obliczana jest długość trwania utrudnienia
 Private Sub txt_Start_Date_Change()
     Call Oblicz_Dlug_Trw_Utrud
 End Sub
@@ -199,7 +160,6 @@ End Sub
 Private Sub img_StartDate_Click()
     
 Data_Start = Format(CDate(txt_Start_Date.Value), "DD-MM-YYYY")
-    
 Me.txt_Start_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
     
 Call Kontr_Data_Start(Data_Start)
@@ -210,7 +170,6 @@ End Sub
 Private Sub img_EndDate_Click()
 
 Data_Koniec = Format(CDate(txt_End_Date.Value), "DD-MM-YYYY")
-
 Me.txt_End_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
 
 Call Kontr_Data_Koniec(Data_Koniec)
@@ -232,26 +191,10 @@ zegar.Show
     
 End Sub
 
-Private Sub opt_Awaria_Click()
-
-'If OptionButton1 = True Then
-'    MsgBox "Awaria"
-'End If
-    
-End Sub
-
-Private Sub opt_Utrudnienie_Click()
-
-'If OptionButton2 = True Then
-'    MsgBox "Utrudnienie"
-'End If
-
-End Sub
-
 Sub Kontr_Data_Start(Data_Start As Date)
 
 ' Kontrola wpisywanych dat
-If CDate(txt_Start_Date.Value) > CDate(txt_End_Date.Value) Then
+If CDate(Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")) > CDate(Format(Me.txt_End_Date.Value, "DD-MM-YYYY")) Then
     MsgBox "Wpisana data początkowa jest póżniejsza od daty końcowej!!!" & vbCrLf _
         & "Wybierz poprawną datę", vbCritical
     Me.txt_Start_Date.Value = Format(Data_Start, "DD-MM-YYYY")
@@ -261,7 +204,7 @@ End Sub
 
 Sub Kontr_Data_Koniec(Data_Koniec As Date)
 
-If CDate(txt_End_Date.Value) < CDate(txt_Start_Date.Value) Then
+If CDate(Format(Me.txt_End_Date.Value, "DD-MM-YYYY")) < CDate(Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")) Then
     MsgBox "Wpisana data końcowa jest wcześniejsza od daty początkowej!!!" & vbCrLf _
         & "Wybierz poprawną datę", vbCritical
     Me.txt_End_Date.Value = Format(Data_Koniec, "DD-MM-YYYY")
@@ -273,11 +216,11 @@ Private Sub Oblicz_Dlug_Trw_Utrud()
 
 ' Uzupełnianie textbox-ów w przypadku inicjalizacji aplikacji
 If Me.txt_Start_Date.Value = "" Then
-    Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
+    Me.txt_Start_Date.Value = CDate(Format(Date, "DD-MM-YYYY"))
 End If
 
 If Me.txt_End_Date.Value = "" Then
-    Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
+    Me.txt_End_Date.Value = CDate(Format(Date, "DD-MM-YYYY"))
 End If
 
 If Me.txt_Start_Godz.Text = "" Then
@@ -322,29 +265,14 @@ Set sh = ThisWorkbook.Sheets("Baza_Awarie")
 lr = Application.WorksheetFunction.CountA(sh.Range("A:A"))
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Sortowanie tabeli z danymi wejściowych, żeby na samym początku zawszy wyświetlała się awaria ostatnio dodana
-Dim tbl As ListObject
-Dim sortcolumn As Range
-
-Set tbl = sh.ListObjects("Baza_Awarie")
-Set sortcolumn = Range("Baza_Awarie[Lp.]")
-
-With tbl.Sort
-   .SortFields.Clear
-   .SortFields.Add Key:=sortcolumn, SortOn:=xlSortOnValues, Order:=xlDescending
-   .Header = xlYes
-   .Apply
-End With
-
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 ' Odświeżanie listy z awariami w ListBox-ie
 If lr = 1 Then lr = 2
 
 With Me.lst_Lista_Awarii
-    .ColumnCount = 9
+    .ColumnCount = 14
     .ColumnHeads = True
-    .ColumnWidths = "30;90;90;90;80;140;80;90;120"
-    .RowSource = sh.Name & "!A2:I" & lr
+    .ColumnWidths = "30;90;130;130;130;140;80;80;100;120;50;40;120;100"
+    .RowSource = sh.Name & "!A2:N" & lr
 End With
 
 End Sub
@@ -355,6 +283,7 @@ Private Sub lst_Lista_Awarii_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
 ' Oznaczanie zmiany trybu
 Me.cmd_Tryb.Enabled = True
 Me.cmd_Modyfikacja.Enabled = True
+Me.cmd_Usuwanie.Enabled = True
 Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI"
 Me.txt_Tryb.Value = 2
 Me.img_Tryb_Insert.Visible = False
@@ -364,8 +293,6 @@ Me.img_Tryb_Update.Visible = True
 Me.cmd_Modyfikacja.Enabled = True
 ' Ukrycie przycisku zapis
 Me.cmd_Zapisz_Nowa_Awarie.Enabled = False
-
-
 ' Wybór rekordu, jego numer identyfikacyjny w tabeli w EXCEL-u
 Me.txt_ID.Value = Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 0)
 
@@ -379,43 +306,45 @@ Else
     Me.opt_Utrudnienie.Value = True
 End If
 
-' Data rozpoczęcia
+' Data i godzina rozpoczęcia
 Me.txt_Start_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 1, 10)
 Me.txt_Start_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 12, 5)
 
-' Data rozpoczęcia
+' Data i godzina zakończenia
 Me.txt_End_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 1, 10)
 Me.txt_Koniec_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 12, 5)
 
 ' Opis problemu
 Me.txt_Opis_Utrudnienia.Value = Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 4)
+' Data ostatniej modyfikacji
+Me.txt_Data_Modyf.Value = Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7)
 
 ' Wpływ na SVL
-If Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 1) = "Brak" Then
+If Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7) = "Brak" Then
     Me.opt_Wplyw_SVL_1.Value = True
     Me.opt_Wplyw_SVL_2.Value = False
     Me.opt_Wplyw_SVL_3.Value = False
     Me.opt_Wplyw_SVL_4.Value = False
     Me.opt_Wplyw_SVL_5.Value = False
-ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 1) = "Niski" Then
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7) = "Niski" Then
     Me.opt_Wplyw_SVL_1.Value = False
     Me.opt_Wplyw_SVL_2.Value = True
     Me.opt_Wplyw_SVL_3.Value = False
     Me.opt_Wplyw_SVL_4.Value = False
     Me.opt_Wplyw_SVL_5.Value = False
-ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Średni" Then
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7) = "Średni" Then
     Me.opt_Wplyw_SVL_1.Value = False
     Me.opt_Wplyw_SVL_2.Value = False
     Me.opt_Wplyw_SVL_3.Value = True
     Me.opt_Wplyw_SVL_4.Value = False
     Me.opt_Wplyw_SVL_5.Value = False
-ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Znaczący" Then
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7) = "Znaczący" Then
     Me.opt_Wplyw_SVL_1.Value = False
     Me.opt_Wplyw_SVL_2.Value = False
     Me.opt_Wplyw_SVL_3.Value = False
     Me.opt_Wplyw_SVL_4.Value = True
     Me.opt_Wplyw_SVL_5.Value = False
-ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Krytyczny" Then
+ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 7) = "Krytyczny" Then
     Me.opt_Wplyw_SVL_1.Value = False
     Me.opt_Wplyw_SVL_2.Value = False
     Me.opt_Wplyw_SVL_3.Value = False
@@ -423,19 +352,286 @@ ElseIf Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2) = "Krytyczny" 
     Me.opt_Wplyw_SVL_5.Value = True
 End If
 
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Wyszukiwanie rekordu
-Dim sh As Worksheet
-Set sh = ThisWorkbook.Sheets("Baza_Awarie")
+End Sub
 
-'Me.txt_Rate.Value = Application.WorksheetFunction.VLookup(Me.cmd_Product, sh.Range("B:D"), 2, 0)
+Private Sub Wartosci_Domyslne()
 
-'Me.cmd_Product.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 1)
-'Me.txt_Qty.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 3)
-'Me.cmb_Type.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 2)
-'Me.txt.Rate.Value = Me.ListBox2.List(Me.ListBox2.ListIndex, 4)
+' Ustawianie wartosci domyślne
 
-'Me.txt_Date.Value = Format(Me.ListBox2.List(Me.ListBox2.ListIndex, 7), "D-MMM-YYYY")
+' Daty
+Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
+Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
+
+' Godziny
+Me.txt_Start_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+Me.txt_Koniec_Godz.Text = _
+    CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
+          
+Me.txt_Opis_Utrudnienia.Value = ""
+Me.txt_Opis_Utrud_Liczba_Znak.Value = 0
+     
+Me.txt_Uzytkownik.Value = CStr(Environ("Username"))
+Me.opt_Awaria.Value = False
+Me.opt_Utrudnienie.Value = False
+Me.opt_Wplyw_SVL_1.Value = True
+
+Me.cmd_Tryb.Caption = "TRYB DODAWANIA"
+' wskażnik dodawania / modyfikacji nowych rekordów (1 dodawanie | 2 modyfikacja)
+Me.txt_Tryb.Value = 1
+
+Me.img_Tryb_Insert.Visible = True
+Me.img_Tryb_Update.Visible = False
+Me.cmd_Modyfikacja.Enabled = False
+Me.cmd_Tryb.Enabled = False
+Me.cmd_Modyfikacja.Enabled = False
+Me.cmd_Usuwanie.Enabled = False
 
 End Sub
+
+Sub Execute_SQL_Query(Sql_Query As Variant)
+    
+    cnn.Open Conn_String
+    cnn.Execute Sql_Query
+    cnn.Close
+        
+End Sub
+
+Private Sub Delete_SQL()
+
+' Osoba modyfikująca
+Dim Uzytkownik As String
+Uzytkownik = Environ("username")
+
+Dim SQL As Variant
+SQL = "UPDATE " & Tabela_Danych_SQL & " " & _
+      "SET Ukrywanie_Rekordu = 1 " & _
+      ",Data_Modyfikacji = CAST(GETDATE() AS DATETIME) " & _
+      ",Osoba_Modyfikacji = " & "'" & Uzytkownik & "'" & _
+      " WHERE ID = " & "'" & Me.txt_ID.Value & "'"
+      
+Debug.Print SQL
+      
+Call Execute_SQL_Query(SQL)
+
+End Sub
+
+Private Sub Insert_SQL()
+
+' Rodzaj problemu
+Dim Rodzaj_Problemu As String
+If Me.opt_Awaria.Value = True Then
+    Rodzaj_Problemu = "Awaria"
+Else
+    Rodzaj_Problemu = "Utrudnienie"
+End If
+
+' DATY
+' tworzenie z tych dat jednej zmiennej "datowej"
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+
+' Wpływ na SVL
+Dim Wplyw_na_SVL
+Call SVL(Wplyw_na_SVL)
+
+' Złoszenie na IgoZille
+Dim Zgloszenie_na_Igozilli As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    Zgloszenie_na_Igozilli = "TAK"
+Else
+    Zgloszenie_na_Igozilli = "NIE"
+End If
+
+' Złoszenie na Zgloszenie_do_HD_Banku
+Dim ZgLoszenie_do_HD_Banku As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    ZgLoszenie_do_HD_Banku = "TAK"
+Else
+    ZgLoszenie_do_HD_Banku = "NIE"
+End If
+
+' Osoba modyfikująca
+Dim Uzytkownik As String
+Uzytkownik = Environ("username")
+
+'''''''''''''''''''''''''''''''''''''''''''''''''
+' Insert do bazy danych SQL
+Dim SQL As Variant
+SQL = "INSERT INTO " & Tabela_Danych_SQL & "(" & _
+      "Rodzaj_Problemu, Data_Godz_Rozpoczecia, Data_Godz_Zakonczenia, Opis_Problemu, Czas_Trwania_Problemu_min, Firma, Wplyw_na_SVL, Zgloszenie_na_Igozilli, Zgloszenie_do_HD_Banku, Nr_Buga, Nr_SD, Osoba_Modyfikacji) " & "VALUES('" & _
+      Rodzaj_Problemu & "','" & _
+      Data_Godz_Start & "','" & _
+      Data_Godz_Koniec & "','" & _
+      Me.txt_Opis_Utrudnienia.Value & "','" & _
+      Me.txt_Czas_Trwania.Value & "','" & _
+      Me.txt_Firma.Value & "', '" & _
+      Wplyw_na_SVL & "','" & _
+      Zgloszenie_na_Igozilli & "','" & _
+      ZgLoszenie_do_HD_Banku & "','" & _
+      Me.txt_nr_Buga.Value & "','" & _
+      Me.txt_nr_SD.Value & "','" & _
+      Uzytkownik & "')"
+      
+Call Execute_SQL_Query(SQL)
+
+End Sub
+
+Private Sub Update_SQL()
+
+' Rodzaj problemu
+Dim Rodzaj_Problemu As String
+If Me.opt_Awaria.Value = True Then
+    Rodzaj_Problemu = "Awaria"
+Else
+    Rodzaj_Problemu = "Utrudnienie"
+End If
+
+' tworzenie z tych dat jednej zmiennej "datowej"
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+
+' Wpływ na SVL
+Dim Wplyw_na_SVL
+Call SVL(Wplyw_na_SVL)
+
+' Złoszenie na IgoZille
+Dim Zgloszenie_na_Igozilli As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    Zgloszenie_na_Igozilli = "TAK"
+Else
+    Zgloszenie_na_Igozilli = "NIE"
+End If
+
+' Złoszenie na Zgloszenie_do_HD_Banku
+Dim ZgLoszenie_do_HD_Banku As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    ZgLoszenie_do_HD_Banku = "TAK"
+Else
+    ZgLoszenie_do_HD_Banku = "NIE"
+End If
+
+' Osoba modyfikująca
+Dim Uzytkownik As String
+Uzytkownik = Environ("username")
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Zapytanie modyfikujące dane
+Dim SQL As Variant
+SQL = "UPDATE " & Tabela_Danych_SQL & " " & _
+      "SET " & _
+      "Rodzaj_Problemu = " & "'" & Rodzaj_Problemu & "'" & _
+      ",Data_Godz_Rozpoczecia = " & "'" & Data_Godz_Start & "'" & _
+      ",Data_Godz_Zakonczenia = " & "'" & Data_Godz_Koniec & "'" & _
+      ",Opis_Problemu = " & "'" & Me.txt_Opis_Utrudnienia.Value & "'" & _
+      ",Czas_Trwania_Problemu_min = " & "'" & Me.txt_Czas_Trwania.Value & "'" & _
+      ",Firma = " & "'" & Me.txt_Firma.Value & "'" & _
+      ",Wplyw_na_SVL = " & "'" & Wplyw_na_SVL & "'" & _
+      ",Zgloszenie_na_Igozilli = " & "'" & Zgloszenie_na_Igozilli & "'" & _
+      ",Zgloszenie_do_HD_Banku = " & "'" & ZgLoszenie_do_HD_Banku & "'" & _
+      ",Nr_Buga = " & "'" & Me.txt_nr_Buga.Value & "'" & _
+      ",Nr_SD = " & "'" & Me.txt_nr_SD.Value & "'" & _
+      ",Data_Modyfikacji = CAST(GETDATE() AS DATETIME)" & _
+      ",Osoba_Modyfikacji = " & "'" & Uzytkownik & "' " & _
+      "WHERE ID = " & "'" & Me.txt_ID.Value & "'"
+
+Debug.Print SQL
+
+Call Execute_SQL_Query(SQL)
+
+End Sub
+
+Private Function SVL(Wplyw_na_SVL) As String
+
+' Wpływ na SVL
+If Me.opt_Wplyw_SVL_1.Value = True Then
+    Wplyw_na_SVL = "Brak"
+ElseIf Me.opt_Wplyw_SVL_2.Value = True Then
+   Wplyw_na_SVL = "Niski"
+ElseIf Me.opt_Wplyw_SVL_3.Value = True Then
+    Wplyw_na_SVL = "Średni"
+ElseIf Me.opt_Wplyw_SVL_4.Value = True Then
+    Wplyw_na_SVL = "Znaczący"
+ElseIf Me.opt_Wplyw_SVL_5.Value = True Then
+    Wplyw_na_SVL = "Krytyczny"
+End If
+
+End Function
+
+Private Sub Pobieranie_Danych_SQL_Server()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets(Arkusz_Danych_EXCEL)
+
+Call Czyszczenie_Tabeli
+
+' Pobieranie nowych danych
+Dim Sql_Query As String
+Sql_Query = "SELECT ID, Rodzaj_Problemu, Data_Godz_Rozpoczecia, Data_Godz_Zakonczenia, Opis_Problemu, Czas_Trwania_Problemu_min, Firma, Wplyw_na_SVL, Zgloszenie_na_Igozilli, ZgLoszenie_do_HD_Banku, Nr_Buga, Nr_SD, Data_Modyfikacji, Osoba_Modyfikacji" & _
+            " FROM " & Tabela_Danych_SQL & _
+            " WHERE Ukrywanie_Rekordu = 0 " & _
+            " ORDER BY Data_Modyfikacji DESC, Osoba_Modyfikacji ASC"
+
+'Debug.Print Sql_Query
+
+cnn.Open Conn_String
+rst.Open Sql_Query, cnn, adOpenKeyset, adLockOptimistic
+sh.Range("A2").CopyFromRecordset rst
+
+rst.Close
+cnn.Close
+
+End Sub
+
+Private Sub Czyszczenie_Tabeli()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets(Arkusz_Danych_EXCEL)
+
+' Najpierw czyszczenie starej zawartości zawartości
+sh.Range("A2:N100000").Clear
+
+' Poprawa formatów danych w komórkach tabeli EXCEL-a
+sh.Range("A:A").NumberFormat = "0"
+sh.Range("B:B").NumberFormat = "@"
+sh.Range("C:C").NumberFormat = "@"
+sh.Range("D:D").NumberFormat = "@"
+sh.Range("E:E").NumberFormat = "@"
+sh.Range("F:F").NumberFormat = "0"
+sh.Range("G:G").NumberFormat = "@"
+sh.Range("H:H").NumberFormat = "@"
+sh.Range("I:I").NumberFormat = "@"
+sh.Range("J:J").NumberFormat = "@"
+sh.Range("K:K").NumberFormat = "@"
+sh.Range("L:L").NumberFormat = "@"
+sh.Range("M:M").NumberFormat = "@"
+sh.Range("N:N").NumberFormat = "@"
+
+End Sub
+
+Private Sub cmd_Pobieranie_Danych_Click()
+
+Call Pobieranie_Danych_SQL_Server
+Call Odswiezanie_ListBox
+
+End Sub
+
+Private Sub cmd_Raport_w_RS_Click()
+
+Dim Link As String
+Link = "https://reporting2016ccprod.bank.ad.pkobp.pl/reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"
+
+On Error GoTo msg
+ActiveWorkbook.FollowHyperlink Address:=Link, NewWindow:=True
+Exit Sub
+
+msg:
+MsgBox "Nie udało się otworzyć raportu - jakiś błąd :(", vbCritical
+
+End Sub
+
 
