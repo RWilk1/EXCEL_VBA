@@ -1,0 +1,54 @@
+Sub EmailWorkbook()
+
+Dim OLApp As Object
+Set OLApp = CreateObject("Outlook.Application")
+
+'Declare our variables
+'Dim OLApp As Outlook.Application
+Dim OLMail As Object
+'Open Outlook start a new mail item
+'Set OLApp = New Outlook.Application
+Set OLMail = OLApp.CreateItem(0)
+OLApp.Session.Logon
+
+'Build our mail item and send
+With OLMail
+.To = "admin@datapigtechnologies.com; mike@datapigtechnologies.com"
+.CC = ""
+.BCC = ""
+.Subject = "This is the Subject line"
+'.Body = "Sample File Attached"
+'.HTMLBody = "<HTML><BODY><span style=""color:#80BFFF"">Font Color</span style=""color:#80BFFF""> <br>the <b>bold text</b> here.</br> <br><u>New line with underline</u></br><br><p style='font-family:calibri;font-size:25'>Font size</br></p></BODY></HTML>"
+.HTMLBody = "<html>" & _
+"<head>" & _
+"<style>" & _
+"table, th, td {border: 1px solid black;}" & _
+"</style>" & _
+"</head>" & _
+"<body>" & _
+"<h1>The table element</h1>" & _
+"<table>" & _
+"<tr>" & _
+"<th>Month</th>" & _
+"<th>Savings</th>" & _
+"</tr>" & _
+"<tr>" & _
+"<td>January</td>" & _
+"<td>$100</td>" & _
+"</tr>" & _
+"<tr>" & _
+"<td>February</td>" & _
+"<td>$80</td>" & _
+"</tr>" & _
+"</table>" & _
+"</body>" & _
+"</html>"
+'.Attachments.Add ActiveWorkbook.FullName
+.Display
+End With
+
+'Memory cleanup
+Set OLMail = Nothing
+Set OLApp = Nothing
+
+End Sub
