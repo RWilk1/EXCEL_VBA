@@ -237,7 +237,7 @@ Next i
 ' Zaznaczanie przycisku reprezentującego pierwszy dzień miesiąca
 For i = 1 To 7
     Set btn = Me.Controls("CommandButton" & i)
-    If VBA.Weekday(First_Date) = i Then
+    If VBA.Weekday(First_Date, vbMonday) = i Then
         btn.Caption = "1"
     Else
         btn.Caption = ""
@@ -260,7 +260,7 @@ For i = 1 To 41
     
 Next i
 
-Debug.Print VBA.Weekday(First_Date)
+Debug.Print VBA.Weekday(First_Date, vbMonday)
 
 ' numerowanie przycisków kalendarza
 'For i = 1 To 41
@@ -320,6 +320,9 @@ End If
 
 Calendar.Show
 
+
+'Call Highlight_Date(VBA.CDate(Data_Start))
+
 If VBA.TypeName(TargetControl) = "Range" Or VBA.TypeName(TargetControl) = "Textbox" Then
     TargetControl.Value = Me.TextBox1.Value
 ElseIf VBA.TypeName(TargetControl) = "CommandButton" Or VBA.TypeName(TargetControl) = "Label" Then
@@ -327,6 +330,8 @@ ElseIf VBA.TypeName(TargetControl) = "CommandButton" Or VBA.TypeName(TargetContr
 Else
     Selected_Date = Me.TextBox1.Value
 End If
+
+
 
 End Function
 
@@ -347,6 +352,7 @@ For i = 1 To 42
 Next i
    
 End Sub
+
 
 
 
