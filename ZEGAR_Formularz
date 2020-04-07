@@ -10,14 +10,13 @@
 ' Zmienna wskażnikowa informująca o wystąpieniu błędu
 Public Czy_Blad As Integer
 ''''''''''''''''''''''''''''''''''
-
 Private Sub CommandButton1_Click()
 
 Czy_Blad = 0
 
 ' Walidacja danych po 24:00 nie można wpisywać żadnych minut
-If txt_godz_start.Value = 24 Then
-    txt_minuta_start.Value = "0"
+If Me.txt_godz_start.Value = 24 Then
+    Me.txt_minuta_start.Value = "00"
 End If
 
 ' Czy błąd
@@ -89,15 +88,17 @@ If Start_Koniec = 1 Then
     Data_Godz_Koniec = App_Awarie.txt_End_Date.Value & " " & Me.txt_godz_start.Value & ":" & Me.txt_minuta_start.Value
 End If
 
-Debug.Print Data_Godz_Start
-Debug.Print Data_Godz_Koniec
+Debug.Print Format(Data_Godz_Start, "YYYY-MM-DD hh:mm:ss")
+Debug.Print CDate(Format(Data_Godz_Koniec, "YYYY-MM-DD hh:mm:ss"))
 Debug.Print Me.Start_Koniec.Value
 Debug.Print Czy_Blad
+
+
 
 ' Godzina Startowa
 If Me.Start_Koniec.Value = 0 Then
    ' Kontrola wpisywanych godz.
-    If CDate(Data_Godz_Start) > CDate(Data_Godz_Koniec) Then
+    If Format(Data_Godz_Start, "YYYY-MM-DD hh:mm:ss") > Format(Data_Godz_Koniec, "YYYY-MM-DD hh:mm:ss") Then
         MsgBox "Wpisana data i godzina początkowa jest póżniejsza od daty i godziny końcowej!!!" & vbCrLf _
             & "Wybierz poprawną datę i godzinę", vbCritical
         Czy_Blad = 1
