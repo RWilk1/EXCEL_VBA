@@ -1,0 +1,264 @@
+
+Private Sub cmb_Film_Certificate_AfterUpdate()
+
+    If Me.cmb_Film_Certificate.Value <> "" Then
+        Me.cmb_Film_Certificate.BackColor = rgbWhite
+        Me.cmb_Film_Certificate.ForeColor = rgbB
+    End If
+
+End Sub
+
+Private Sub cmd_Add_Click()
+
+    If EverythingFilledIn = False Then Exit Sub
+    
+ '    FilmDetails.Hide
+    wsFilms.Select
+    
+    If Range("A2").Value = "" Then
+        Range("A2").Select
+    Else
+        Range("A1").End(xlDown).Offset(1, 0).Select
+    End If
+            
+    ActiveCell.Value = Me.txt_FilmTitle.Value
+    ActiveCell.Offset(0, 1).Value = txt_FilmDate.Value
+    ActiveCell.Offset(0, 2).Value = Me.txt_FilmGross.Value
+    ActiveCell.Offset(0, 2).NumberFormat = Range("C3").NumberFormat
+    
+    ActiveCell.Offset(0, 3).Value = Me.cmb_Film_Certificate.Column(0, cmb_Film_Certificate.ListIndex)
+    ActiveCell.Offset(0, 4).Value = Me.lst_Films_Genres.Value
+    ActiveCell.Offset(0, 5).Value = SelectedGenres
+    
+    
+    ActiveCell.Offset(0, 3).NumberFormat = "@"
+    
+'    MsgBox txt_FilmTitle.Value & " was added to row " & ActiveCell.Row
+    
+End Sub
+Private Function SelectedGenres() As String
+
+Dim i As Integer
+' ComboBox wklejanie wielu wybranych wartości
+For i = LBound(Me.lst_Films_Genres.List) To UBound(Me.lst_Films_Genres.List)
+    If Me.lst_Films_Genres.Selected(i) Then
+        SelectedGenres = SelectedGenres & Me.lst_Films_Genres.List(i) & ","
+    End If
+Next i
+        
+    If Len(SelectedGenres) > 0 Then
+        SelectedGenres = Left(SelectedGenres, Len(SelectedGenres) - 1)
+    End If
+        
+End Function
+
+Private Function EverythingFilledIn() As Boolean
+
+    EverythingFilledIn = True
+    
+    ' Sprawdzanie, czy wszystkie pola tekst. zostały uzupełnione w 1 pętli
+    Dim ctl As MSForms.Control
+    Dim AnythingMissing As Boolean
+'    AnythingMissing = False
+    
+    For Each ctl In Me.Controls
+        If TypeOf ctl Is MSForms.TextBox Or TypeOf ctl Is MSForms.ComboBox Then
+            If ctl.Value = "" Then
+                ctl.BackColor = rgbPink
+'                If AnythingMissing = False Then
+'                    ctl.SetFocus
+'                End If
+'                AnythingMissing = True
+                EverythingFilledIn = False
+            End If
+        End If
+    Next ctl
+    
+End Function
+
+Private Sub cmd_Add_New_Genre_Click()
+
+    Dim MyNameRange As Range
+    Set MyNameRange = Sheets("Lists").Range("A2", Range("A2").End(xlDown).End(xlToRight))
+    
+    ThisWorkbook.Names.Add Name:=RangeName, RefersTo:=MyNameRange
+    
+    Debug.Print Sum("RangeName")
+    
+    
+    If Me.txt_New_Genre.Value <> "" Then
+    
+    
+    
+    Sheets("Lists").Range("A2", Range("A2").End(xlDown).End(xlToRight)).Value
+    
+        Me.lst_Films_Genres.AddItem Me.txt_New_Genre.Value
+    End If
+
+End Sub
+
+Private Sub cmd_Use_UK_Ratings_Click()
+
+'    On Error Resume Next
+'    Me.cmb_Film_Certificate.Clear
+    Me.cmb_Film_Certificate.RowSource = "BBFC_Ratings"
+'    Me.cmb_Film_Certificate.List = Range("BBFC_Ratings").Value
+
+
+End Sub
+
+Private Sub cmd_Use_US_Ratings_Click()
+
+'    Me.cmb_Film_Certificate.Clear
+    Me.cmb_Film_Certificate.RowSource = "MPAA_Ratings"
+'    Me.cmb_Film_Certificate.List = Sheets("Lists").Range("C2", Range("C2").End(xlDown)).Value
+'    Me.cmb_Film_Certificate.List = Lists.Range("C2", Lists.Range("C2").End(xlDown)).Value
+
+End Sub
+
+Private Sub txt_FilmDate_AfterUpdate()
+
+    Me.txt_FilmDate.BackColor = rgbWhite
+    Me.lbl_Film_Date.ForeColor = rgbWhite
+    Me.lbl_Film_Date.Caption = "Release Date"
+    Me.txt_FilmDate.Value = Format(Me.txt_FilmDate.Value, "YYYY-MM-DD")
+
+End Sub
+
+Private Sub txt_FilmDate_BeforeUpdate(ByVal Cancel As MSForms.ReturnBoolean)
+
+    Dim ActualDate As Date
+
+    If Not IsDate(Me.txt_FilmDate.Value) Then
+        Call FilmDateShowError("Dates only!")
+        Cancel = True
+    Else
+        ActualDate = CDate(Me.txt_FilmDate.Value)
+        If ActualDate > VBA.Date() Then
+            Call FilmDateShowError("No future dates")
+            Cancel = True
+        End If
+    End If
+    
+End Sub
+
+Private Sub FilmDateShowError(ErrorCaption As String)
+
+    Me.txt_FilmDate.BackColor = rgbPink
+    Me.lbl_Film_Date.ForeColor = rgbRed
+    Me.lbl_Film_Date.Caption = ErrorCaption
+    Me.txt_FilmDate.SelStart = 0
+    Me.txt_FilmDate.SelLength = Len(txt_FilmDate.Value)
+
+End Sub
+
+Private Sub txt_FilmGross_AfterUpdate()
+
+    lbl_Event_List.Caption = lbl_Event_List.Caption & vbNewLine & "AfterUpdate"
+    
+    Me.txt_FilmGross.BackColor = rgbWhite
+    Me.lbl_FilmGross.Caption = "Gross ($)"
+    Me.lbl_FilmGross.ForeColor = rgbWhite
+      
+End Sub
+
+Private Sub txt_FilmGross_BeforeUpdate(ByVal Cancel As MSForms.ReturnBoolean)
+    lbl_Event_List.Caption = lbl_Event_List.Caption & vbNewLine & "BeforeUpdate"
+    ' Uwaga te zdarzenie może cofać wprowadzenie zmian
+    
+    ' Sprawdzanie czy wpisana wartość jest numeryczne, jeśli nie to CANCEL
+    If Not IsNumeric(Me.txt_FilmGross.Value) Then
+        Call FilmGrossShowError("Numbers only!")
+        Cancel = True
+    Else
+        If Me.txt_FilmGross.Value < 0 Then
+        FilmGrossShowError "Positive nb!"
+        Cancel = True
+        End If
+    End If
+    
+End Sub
+
+Private Sub FilmGrossShowError(ErrorCaption As String)
+    
+    Me.lbl_FilmGross.ForeColor = rgbRed
+    Me.txt_FilmGross.BackColor = rgbPink
+    Me.lbl_FilmGross.Caption = ErrorCaption
+    Me.txt_FilmGross.SelStart = 0
+    Me.txt_FilmGross.SelLength = Len(Me.txt_FilmGross.Value)
+    
+End Sub
+
+Private Sub txt_FilmGross_Change()
+    lbl_Event_List.Caption = lbl_Event_List.Caption & vbNewLine & "Change"
+End Sub
+
+Private Sub txt_FilmGross_Enter()
+    lbl_Event_List.Caption = lbl_Event_List.Caption & vbNewLine & "Enter"
+End Sub
+
+Private Sub txt_FilmTitle_AfterUpdate()
+
+    If Me.txt_FilmTitle.Value <> "" Then
+        Me.txt_FilmTitle.BackColor = rgbWhite
+        Me.lbl_FilmName.ForeColor = rgbWhite
+    End If
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+' Żeby było zawsze na środku ekranu
+'With FilmDetails
+'.StartUpPosition = 0
+'.Left = Application.Left + (0.5 * Application.Width) - (0.5 * .Width)
+'.Top = Application.Top + (0.5 * Application.Height) - (0.5 * .Height)
+'.Show
+'End With
+
+'    Me.txt_FilmGross.Value = 0
+    Controls("txt_FilmDate").Value = Format(Now(), "YYYY-MM-DD")
+
+' Permissin denied
+'    Me.lst_Films_Genres.List = Sheets("Lists").Range("G2:G18").Value
+'    Me.lst_Films_Genres.List = Sheets("Lists").Range("G2", Sheets("Lists").Range("G1").End(xlDown)).Value
+'    Me.lst_Films_Genres.List = Sheets("Lists").Range("Genres").Value
+
+    Me.lst_Films_Genres.RowSource = "Genres"
+
+    ' Wypełnianie ComboBox-a wartościami
+'    Me.cmb_Film_Certificate.RowSource = "BBFC_Ratings"
+'Me.cmb_Film_Certificate.List = Sheets("Lists").Range("A2", Range("A2").End(xlDown)).Value
+    Call PopulateCertificates
+
+End Sub
+
+Private Sub PopulateCertificates()
+
+    Me.cmb_Film_Certificate.RowSource = "BBFC_Ratings"
+
+'    Me.cmb_Film_Certificate.List = _
+'    Sheets("Lists").Range("A2", Range("A2").End(xlDown).End(xlToRight)).Value
+
+
+'    With Me.cmb_Film_Certificate
+'        .AddItem "U"
+'        .AddItem "PG"
+'        .AddItem "12A"
+'        .AddItem "12"
+'        .AddItem "15"
+'        .AddItem "18"
+'    End With
+
+End Sub
+
+
+Private Sub cmd_Cancel_Click()
+    Me.Hide
+    Unload Me
+End Sub
+
+Private Sub UserForm_Terminate()
+    wsMenu.Select
+End Sub
+
