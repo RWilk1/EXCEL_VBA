@@ -28,8 +28,8 @@ txt_Uzytkownik
 lst_Lista_Awarii
 
 
-Dim Data_Start As Date
-Dim Data_Koniec As Date
+Public Data_Start As Date
+Public Data_Koniec As Date
 Dim cnn As New ADODB.Connection
 Dim rst As New ADODB.Recordset
 Dim Sql_Query As String
@@ -37,6 +37,93 @@ Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP18
 Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
 Const Arkusz_Danych_EXCEL As String = "Baza_Awarie"
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Private Sub cmb_Lista_Adresow_Email_Change()
+
+'Me.cmb_Lista_Adresow_Email.RowSource
+
+End Sub
+
+Private Sub cmd_Wyslij_email_Click()
+
+' Sprawdzanie, czy jakaś awaria został już wybrana
+If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
+    MsgBox "Żeby wysłać maila z info o nowej awarii zaznacz rodzaj problemu" & vbNewLine & _
+    "lub wybierz jakąś z listy", vbCritical
+    Exit Sub
+End If
+
+' Dane potrzebne do mail-a
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Rodzaj problemu
+Dim Rodzaj_Problemu As String
+If Me.opt_Awaria.Value = True Then
+    Rodzaj_Problemu = "Awaria"
+Else
+    Rodzaj_Problemu = "Utrudnienie"
+End If
+
+' tworzenie z tych dat jednej zmiennej "datowej"
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+
+' Wpływ na SVL
+Dim Wplyw_na_SVL
+Call SVL(Wplyw_na_SVL)
+
+' Złoszenie na IgoZille
+Dim Zgloszenie_na_Igozilli As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    Zgloszenie_na_Igozilli = "TAK"
+Else
+    Zgloszenie_na_Igozilli = "NIE"
+End If
+
+' Złoszenie na Zgloszenie_do_HD_Banku
+Dim ZgLoszenie_do_HD_Banku As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    ZgLoszenie_do_HD_Banku = "TAK"
+Else
+    ZgLoszenie_do_HD_Banku = "NIE"
+End If
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Wysyłanie mail-a z Outlook-a
+Dim OLApp As Object
+Set OLApp = CreateObject("Outlook.Application")
+
+Dim OLMail As Object
+Set OLMail = OLApp.CreateItem(0)
+
+OLApp.Session.Logon
+
+'Mail
+With OLMail
+.To = "rafal.wilk.2@pkobp.pl"
+.CC = ""
+.BCC = ""
+.Subject = "UWAGA: Pojawiło się utrudnienie"
+.Body = "UWAGA: Pojawiło się utrudnienie:" & vbNewLine & _
+            vbNewLine & "Rodzaj problemu: " & vbTab & Rodzaj_Problemu & _
+            vbNewLine & "Planowana data i godzina rozpoczęcia: " & vbTab & Data_Godz_Start & _
+            vbNewLine & "Planowana data i godzina zakończenia: " & vbTab & Data_Godz_Koniec & _
+            vbNewLine & "Planowany czas trwania w minutach: " & vbTab & Me.txt_Czas_Trwania.Value & _
+            vbNewLine & "Opis problemu: " & vbTab & Me.txt_Opis_Utrudnienia.Value & _
+            vbNewLine & "Wpływ na SVL: " & vbTab & Wplyw_na_SVL & _
+            vbNewLine & "Zgloszenie na Igozill-e: " & vbTab & Zgloszenie_na_Igozilli & _
+            vbNewLine & "Zgloszenie do HD Banku: " & vbTab & ZgLoszenie_do_HD_Banku & _
+            vbNewLine & "Nr. Buga: " & vbTab & Me.txt_nr_Buga.Value & _
+            vbNewLine & "Nr. SD: " & vbTab & Me.txt_nr_SD.Value
+.Display
+End With
+
+'Memory cleanup
+Set OLMail = Nothing
+Set OLApp = Nothing
+
+End Sub
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''
 ' Uruchamianie aplikacji
@@ -48,6 +135,9 @@ Private Sub UserForm_Initialize()
     Call Pobieranie_Danych_SQL_Server
     ' Odświeżanie ListBox-a
     Call Odswiezanie_ListBox
+    ' Pobieranie adresów mail-owych z SQL Server-a
+    Call Pobieranie_Adres_Maili_SQL_Server
+        
 End Sub
 
 ' Usuwanie awarii - w zasadzie to ukrywanie żeby się nie wyświetlała
@@ -146,9 +236,11 @@ End Sub
 ' Przy zmianie wartości daty lub godziny ponownie obliczana jest długość trwania utrudnienia
 Private Sub txt_Start_Date_Change()
     Call Oblicz_Dlug_Trw_Utrud
+    Me.txt_Start_Date.Value = Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")
 End Sub
 Private Sub txt_End_Date_Change()
     Call Oblicz_Dlug_Trw_Utrud
+    Me.txt_End_Date.Value = Format(Me.txt_End_Date.Value, "DD-MM-YYYY")
 End Sub
 Private Sub txt_Start_Godz_Change()
     Call Oblicz_Dlug_Trw_Utrud
@@ -160,7 +252,7 @@ End Sub
 Private Sub img_StartDate_Click()
     
 Data_Start = Format(CDate(txt_Start_Date.Value), "DD-MM-YYYY")
-Me.txt_Start_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
+Me.txt_Start_Date.Value = Format(Calendar.Selected_Date(), "DD-MM-YYYY")
     
 Call Kontr_Data_Start(Data_Start)
 Call Oblicz_Dlug_Trw_Utrud
@@ -633,5 +725,32 @@ msg:
 MsgBox "Nie udało się otworzyć raportu - jakiś błąd :(", vbCritical
 
 End Sub
+
+Private Sub Pobieranie_Adres_Maili_SQL_Server()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Adresy_Mailowe")
+
+'Call Czyszczenie_Tabeli
+
+' Pobieranie nowych danych
+Dim Sql_Query As String
+Sql_Query = "SELECT Adres_Email ,Opis ,Data_Ostat_Modyf ,Osoba_Dokon_Ostat_Modyf " & _
+            "FROM cod.Grupy_Mailowe " & _
+            "WHERE Ukrywanie_Rekordu <> 1 " & _
+            "ORDER BY Data_Ostat_Modyf DESC"
+
+'Debug.Print Sql_Query
+
+cnn.Open Conn_String
+rst.Open Sql_Query, cnn, adOpenKeyset, adLockOptimistic
+sh.Range("A2").CopyFromRecordset rst
+
+rst.Close
+cnn.Close
+
+End Sub
+
+
 
 
