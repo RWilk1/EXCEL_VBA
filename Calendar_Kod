@@ -1,5 +1,4 @@
 
-
 Option Explicit
 
 Private Sub cmb_Month_Change()
@@ -312,7 +311,7 @@ ElseIf VBA.TypeName(TargetControl) = "CommandButton" Or VBA.TypeName(TargetContr
 End If
 
 If VBA.IsDate(str) = True Then
-    Me.TextBox1.Value = VBA.Format(VBA.CDate(str), "DD-MM-YYYY")
+    Me.TextBox1.Value = VBA.Format(VBA.CDate(str), "YYYY-MM-DD")
     Call Highlight_Date(VBA.CDate(str))
 Else
     Me.TextBox1.Value = ""
