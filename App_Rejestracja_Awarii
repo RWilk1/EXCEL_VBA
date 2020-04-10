@@ -30,6 +30,7 @@ lst_Lista_Awarii
 
 Public Data_Start As Date
 Public Data_Koniec As Date
+Public Error As Integer
 Dim cnn As New ADODB.Connection
 Dim rst As New ADODB.Recordset
 Dim Sql_Query As String
@@ -37,93 +38,6 @@ Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP18
 Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
 Const Arkusz_Danych_EXCEL As String = "Baza_Awarie"
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Private Sub cmb_Lista_Adresow_Email_Change()
-
-'Me.cmb_Lista_Adresow_Email.RowSource
-
-End Sub
-
-Private Sub cmd_Wyslij_email_Click()
-
-' Sprawdzanie, czy jakaś awaria został już wybrana
-If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
-    MsgBox "Żeby wysłać maila z info o nowej awarii zaznacz rodzaj problemu" & vbNewLine & _
-    "lub wybierz jakąś z listy", vbCritical
-    Exit Sub
-End If
-
-' Dane potrzebne do mail-a
-''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Rodzaj problemu
-Dim Rodzaj_Problemu As String
-If Me.opt_Awaria.Value = True Then
-    Rodzaj_Problemu = "Awaria"
-Else
-    Rodzaj_Problemu = "Utrudnienie"
-End If
-
-' tworzenie z tych dat jednej zmiennej "datowej"
-Dim Data_Godz_Start As Variant
-Dim Data_Godz_Koniec As Variant
-Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
-Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
-
-' Wpływ na SVL
-Dim Wplyw_na_SVL
-Call SVL(Wplyw_na_SVL)
-
-' Złoszenie na IgoZille
-Dim Zgloszenie_na_Igozilli As String
-If Me.opt_IgoZilla_Tak.Value = True Then
-    Zgloszenie_na_Igozilli = "TAK"
-Else
-    Zgloszenie_na_Igozilli = "NIE"
-End If
-
-' Złoszenie na Zgloszenie_do_HD_Banku
-Dim ZgLoszenie_do_HD_Banku As String
-If Me.opt_IgoZilla_Tak.Value = True Then
-    ZgLoszenie_do_HD_Banku = "TAK"
-Else
-    ZgLoszenie_do_HD_Banku = "NIE"
-End If
-
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Wysyłanie mail-a z Outlook-a
-Dim OLApp As Object
-Set OLApp = CreateObject("Outlook.Application")
-
-Dim OLMail As Object
-Set OLMail = OLApp.CreateItem(0)
-
-OLApp.Session.Logon
-
-'Mail
-With OLMail
-.To = "rafal.wilk.2@pkobp.pl"
-.CC = ""
-.BCC = ""
-.Subject = "UWAGA: Pojawiło się utrudnienie"
-.Body = "UWAGA: Pojawiło się utrudnienie:" & vbNewLine & _
-            vbNewLine & "Rodzaj problemu: " & vbTab & Rodzaj_Problemu & _
-            vbNewLine & "Planowana data i godzina rozpoczęcia: " & vbTab & Data_Godz_Start & _
-            vbNewLine & "Planowana data i godzina zakończenia: " & vbTab & Data_Godz_Koniec & _
-            vbNewLine & "Planowany czas trwania w minutach: " & vbTab & Me.txt_Czas_Trwania.Value & _
-            vbNewLine & "Opis problemu: " & vbTab & Me.txt_Opis_Utrudnienia.Value & _
-            vbNewLine & "Wpływ na SVL: " & vbTab & Wplyw_na_SVL & _
-            vbNewLine & "Zgloszenie na Igozill-e: " & vbTab & Zgloszenie_na_Igozilli & _
-            vbNewLine & "Zgloszenie do HD Banku: " & vbTab & ZgLoszenie_do_HD_Banku & _
-            vbNewLine & "Nr. Buga: " & vbTab & Me.txt_nr_Buga.Value & _
-            vbNewLine & "Nr. SD: " & vbTab & Me.txt_nr_SD.Value
-.Display
-End With
-
-'Memory cleanup
-Set OLMail = Nothing
-Set OLApp = Nothing
-
-End Sub
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''
 ' Uruchamianie aplikacji
@@ -133,11 +47,12 @@ Private Sub UserForm_Initialize()
     Call Wartosci_Domyslne
     ' Pobieranie nowych / odświeżonych danych do EXCEL-a z SQL Server-a
     Call Pobieranie_Danych_SQL_Server
-    ' Odświeżanie ListBox-a
+    ' ' Procedurka odswiezająca ListBox-a z awariami
     Call Odswiezanie_ListBox
     ' Pobieranie adresów mail-owych z SQL Server-a
     Call Pobieranie_Adres_Maili_SQL_Server
-        
+    ' Odswiezanie adresow mail-owych
+    Call Odswiez_Adres_Mailowych
 End Sub
 
 ' Usuwanie awarii - w zasadzie to ukrywanie żeby się nie wyświetlała
@@ -184,14 +99,12 @@ Call Odswiezanie_ListBox
 End Sub
 
 Private Sub cmd_Modyfikacja_Click()
-
-' Update do bazy danych
-Call Update_SQL
-' Odświeżanie danych
-Call Pobieranie_Danych_SQL_Server
-' Procedurka odswiezająca ListBox-a
-Call Odswiezanie_ListBox
-
+    ' Update do bazy danych
+    Call Update_SQL
+    ' Odświeżanie danych
+    Call Pobieranie_Danych_SQL_Server
+    ' Procedurka odswiezająca ListBox-a z awariami
+    Call Odswiezanie_ListBox
 End Sub
 
 Private Sub cmd_Tryb_Click()
@@ -228,19 +141,19 @@ If Me.cmd_Tryb.Caption = "TRYB MODYFIKACJI" Then
     
     ' Ustawianie wartości domyślnych
     Call Wartosci_Domyslne
-    
     Exit Sub
+    
 End If
 
 End Sub
 ' Przy zmianie wartości daty lub godziny ponownie obliczana jest długość trwania utrudnienia
-Private Sub txt_Start_Date_Change()
+Private Sub txt_Start_Date_Change2()
     Call Oblicz_Dlug_Trw_Utrud
-    Me.txt_Start_Date.Value = Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")
+    Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
 End Sub
-Private Sub txt_End_Date_Change()
+Private Sub txt_End_Date_Change2()
     Call Oblicz_Dlug_Trw_Utrud
-    Me.txt_End_Date.Value = Format(Me.txt_End_Date.Value, "DD-MM-YYYY")
+    Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
 End Sub
 Private Sub txt_Start_Godz_Change()
     Call Oblicz_Dlug_Trw_Utrud
@@ -250,21 +163,45 @@ Private Sub txt_Koniec_Godz_Change()
 End Sub
 
 Private Sub img_StartDate_Click()
-    
-Data_Start = Format(CDate(txt_Start_Date.Value), "DD-MM-YYYY")
-Me.txt_Start_Date.Value = Format(Calendar.Selected_Date(), "DD-MM-YYYY")
-    
+
+' Zmienna przechowująca date wejściową, do której można się cofnąć
+Data_Start = Me.txt_Start_Date2.Value
+
+' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
+Me.txt_Start_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
+' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
+Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
+ 
+' Kontrola poprawności wybranej daty początkowej
 Call Kontr_Data_Start(Data_Start)
+
+' Jeśli została wpisana błędna data to powrót do daty wejściowej i koniec procedurki
+If Error = 1 Then
+    Exit Sub
+End If
+
 Call Oblicz_Dlug_Trw_Utrud
     
 End Sub
 
 Private Sub img_EndDate_Click()
 
-Data_Koniec = Format(CDate(txt_End_Date.Value), "DD-MM-YYYY")
-Me.txt_End_Date.Value = Format(Calendar.Selected_Date, "DD-MM-YYYY")
+' Zmienna przechowująca date wejściową, do której można się cofnąć
+Data_Koniec = Me.txt_End_Date2.Value
 
+' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
+Me.txt_End_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
+' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
+Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
+
+' Kontrola poprawności wybranej daty końcowej
 Call Kontr_Data_Koniec(Data_Koniec)
+
+' Jeśli została wpisana błędna data to powrót do daty wejściowej i koniec procedurki
+If Error = 1 Then
+    Exit Sub
+End If
+
 Call Oblicz_Dlug_Trw_Utrud
 
 End Sub
@@ -285,21 +222,44 @@ End Sub
 
 Sub Kontr_Data_Start(Data_Start As Date)
 
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Value
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Value
+
+'Debug.Print CDate(Data_Godz_Start, "YYYY-MM-DD hh:mm")
+'Debug.Print CDate(Format(Data_Godz_Start, "YYYY-MM-DD hh:mm"))
+'Debug.Print CDate(Format(Data_Godz_Koniec, "YYYY-MM-DD hh:mm"))
+
 ' Kontrola wpisywanych dat
-If CDate(Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")) > CDate(Format(Me.txt_End_Date.Value, "DD-MM-YYYY")) Then
+If CDate(Data_Godz_Start) > CDate(Data_Godz_Koniec) Then
     MsgBox "Wpisana data początkowa jest póżniejsza od daty końcowej!!!" & vbCrLf _
         & "Wybierz poprawną datę", vbCritical
-    Me.txt_Start_Date.Value = Format(Data_Start, "DD-MM-YYYY")
+    ' Jeśli błędan data to powrót do wartości wejściowej
+    Me.txt_Start_Date2.Value = Format(Data_Start, "YYYY-MM-DD")
+    Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
+    Error = 1
 End If
 
 End Sub
 
 Sub Kontr_Data_Koniec(Data_Koniec As Date)
 
-If CDate(Format(Me.txt_End_Date.Value, "DD-MM-YYYY")) < CDate(Format(Me.txt_Start_Date.Value, "DD-MM-YYYY")) Then
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Value
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Value
+
+'Debug.Print CDate(Format(Data_Godz_Start, "YYYY-MM-DD hh:mm"))
+'Debug.Print CDate(Format(Data_Godz_Koniec, "YYYY-MM-DD hh:mm"))
+
+If CDate(Data_Godz_Koniec) < CDate(Data_Godz_Start) Then
     MsgBox "Wpisana data końcowa jest wcześniejsza od daty początkowej!!!" & vbCrLf _
         & "Wybierz poprawną datę", vbCritical
-    Me.txt_End_Date.Value = Format(Data_Koniec, "DD-MM-YYYY")
+    ' Jeśli błędan data to powrót do wartości wejściowej
+    Me.txt_End_Date2.Value = Format(Data_Koniec, "YYYY-MM-DD")
+    Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
+    Error = 1
 End If
     
 End Sub
@@ -307,12 +267,12 @@ End Sub
 Private Sub Oblicz_Dlug_Trw_Utrud()
 
 ' Uzupełnianie textbox-ów w przypadku inicjalizacji aplikacji
-If Me.txt_Start_Date.Value = "" Then
-    Me.txt_Start_Date.Value = CDate(Format(Date, "DD-MM-YYYY"))
+If Me.txt_Start_Date2.Value = "" Then
+    Me.txt_Start_Date2.Value = CDate(Format(Date, "YYYY-MM-DD"))
 End If
 
-If Me.txt_End_Date.Value = "" Then
-    Me.txt_End_Date.Value = CDate(Format(Date, "DD-MM-YYYY"))
+If Me.txt_End_Date2.Value = "" Then
+    Me.txt_End_Date2.Value = CDate(Format(Date, "YYYY-MM-DD"))
 End If
 
 If Me.txt_Start_Godz.Text = "" Then
@@ -322,15 +282,15 @@ End If
 If Me.txt_Koniec_Godz.Text = "" Then
     Me.txt_Koniec_Godz.Text = CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
 End If
-
 ''''''''''''''''''''''''''''''''''''''''''''''''
+
 Dim Data_Godz_Start As Variant
 Dim Data_Godz_Koniec As Variant
 Dim Czas_trw_Utrud As Variant
 
 ' tworzenie z tych dat jednej zmiennej "datowej"
-Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
-Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Text
   
 Czas_trw_Utrud = DateDiff("n", CDate(Data_Godz_Start), CDate(Data_Godz_Koniec))
 
@@ -399,11 +359,15 @@ Else
 End If
 
 ' Data i godzina rozpoczęcia
-Me.txt_Start_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 1, 10)
+Me.txt_Start_Date2.Value = Format(Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 1, 10), "YYYY-MM-DD")
+'Me.txt_Start_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 1, 10)
+Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
 Me.txt_Start_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 2), 12, 5)
 
 ' Data i godzina zakończenia
-Me.txt_End_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 1, 10)
+Me.txt_End_Date2.Value = Format(Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 1, 10), "YYYY-MM-DD")
+'Me.txt_End_Date.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 1, 10)
+Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
 Me.txt_Koniec_Godz.Value = Mid(Me.lst_Lista_Awarii.List(Me.lst_Lista_Awarii.ListIndex, 3), 12, 5)
 
 ' Opis problemu
@@ -450,7 +414,13 @@ Private Sub Wartosci_Domyslne()
 
 ' Ustawianie wartosci domyślne
 
-' Daty
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Daty wykorzystywane do obliczeń (z normalnym formatowaneim)
+Me.txt_Start_Date2.Value = Date
+Me.txt_End_Date2.Value = Date
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+' Daty prezentowane
 Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
 Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
 
@@ -522,8 +492,8 @@ End If
 ' tworzenie z tych dat jednej zmiennej "datowej"
 Dim Data_Godz_Start As Variant
 Dim Data_Godz_Koniec As Variant
-Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
-Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Text
 
 ' Wpływ na SVL
 Dim Wplyw_na_SVL
@@ -584,8 +554,8 @@ End If
 ' tworzenie z tych dat jednej zmiennej "datowej"
 Dim Data_Godz_Start As Variant
 Dim Data_Godz_Koniec As Variant
-Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
-Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Text
 
 ' Wpływ na SVL
 Dim Wplyw_na_SVL
@@ -751,6 +721,154 @@ cnn.Close
 
 End Sub
 
+Sub Wybrane_Adr_Mailowe()
+
+' Procedura identyfikuje adresy mail-owe, które zostaly wybrane
+Dim i As Long
+Dim Wybrane_Adr_Maile As String
+
+For i = 0 To Me.lst_Lista_Adresow_Email.ListCount - 1
+    If Me.lst_Lista_Adresow_Email.Selected(i) Then
+        Wybrane_Adr_Maile = Wybrane_Adr_Maile & Me.lst_Lista_Adresow_Email.List(i) & "; "
+    End If
+Next
+
+If Wybrane_Adr_Maile = "" Then
+    MsgBox "Musisz wybrać jakiś adres mail-owy adresata", vbInformation
+    Exit Sub
+End If
+
+Me.txt_Wybrane_emaile.Value = Mid(Wybrane_Adr_Maile, 1, Len(Wybrane_Adr_Maile) - 2)
+
+End Sub
+
+Sub Odswiez_Adres_Mailowych()
+
+Dim sh As Worksheet
+Dim lr As Long
+
+Set sh = ThisWorkbook.Sheets("Adresy_Mailowe")
+lr = Application.WorksheetFunction.CountA(sh.Range("A:A"))
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Odświeżanie listy z awariami w ListBox-ie
+If lr = 1 Then lr = 2
+
+With Me.lst_Lista_Adresow_Email
+    .ColumnCount = 2
+    .ColumnHeads = True
+    .ColumnWidths = "140;140"
+    .RowSource = sh.Name & "!A2:B" & lr
+End With
+
+End Sub
+
+''''''''''''''''''''''''''''''''''''''''''''''''''
+' WYSYŁANIE MAIL-a
+''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Private Sub cmd_Wyslij_email_Click()
+
+' Sprawdzanie, które adresy mailowe zostały wybrane i zapisywanie ich do TxtBox-a
+Call Wybrane_Adr_Mailowe
+
+' Sprawdzanie, czy jakaś awaria został już wybrana
+If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
+    MsgBox "Żeby wysłać maila z info o nowej awarii zaznacz rodzaj problemu" & vbNewLine & _
+    "lub wybierz jakąś z listy", vbCritical
+    Exit Sub
+End If
+
+' Jeśli nie zostały wybrane żadne adresy mail-owe wówczas następuje anulowanie procedury
+If Me.txt_Wybrane_emaile.Value = "" Then
+    Exit Sub
+End If
+
+' Dane potrzebne do mail-a
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Rodzaj problemu
+Dim Rodzaj_Problemu As String
+If Me.opt_Awaria.Value = True Then
+    Rodzaj_Problemu = "Awaria"
+Else
+    Rodzaj_Problemu = "Utrudnienie"
+End If
+
+' tworzenie z tych dat jednej zmiennej "datowej"
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
+Data_Godz_Start = Me.txt_Start_Date.Value & " " & Me.txt_Start_Godz.Text
+Data_Godz_Koniec = Me.txt_End_Date.Value & " " & Me.txt_Koniec_Godz.Text
+
+' Wpływ na SVL
+Dim Wplyw_na_SVL
+Call SVL(Wplyw_na_SVL)
+
+' Złoszenie na IgoZille
+Dim Zgloszenie_na_Igozilli As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    Zgloszenie_na_Igozilli = "TAK"
+Else
+    Zgloszenie_na_Igozilli = "NIE"
+End If
+
+' Złoszenie na Zgloszenie_do_HD_Banku
+Dim ZgLoszenie_do_HD_Banku As String
+If Me.opt_IgoZilla_Tak.Value = True Then
+    ZgLoszenie_do_HD_Banku = "TAK"
+Else
+    ZgLoszenie_do_HD_Banku = "NIE"
+End If
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Wysyłanie mail-a z Outlook-a
+Dim OLApp As Object
+Set OLApp = CreateObject("Outlook.Application")
+
+Dim OLMail As Object
+Set OLMail = OLApp.CreateItem(0)
+
+OLApp.Session.Logon
+
+'Mail
+With OLMail
+.To = Me.txt_Wybrane_emaile.Value
+.CC = ""
+.BCC = ""
+.Subject = "UWAGA: Pojawiło się nowe utrudnienie / awaria"
+.HTMLBody = "<html>" & "<head>" & "<style>" & _
+"table" & ",th,td" & "{border: 1px solid black;" & "border-collapse: collapse; width: 50%;}" & _
+"th, td {text-align: left;padding: 4px;}" & "tr:nth-child(even){background-color: #f2f2f2}" & _
+"th {background-color: #000000;color: white;}" & _
+"</style>" & "</head>" & "<body>" & _
+"<h1>INFORMACJA O PROBLEMIE</h1>" & _
+"<table>" & _
+"<tr>" & "<th>PROBLEM</th>" & "<th>OPIS</th>" & "</tr>" & _
+"<tr>" & "<td>" & "Rodzaj problemu: " & "</td>" & "<td>" & Rodzaj_Problemu & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Planowana data i godzina rozpoczęcia: " & "</td>" & "<td>" & Data_Godz_Start & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Planowana data i godzina zakończenia: " & "</td>" & "<td>" & Data_Godz_Koniec & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Planowany czas trwania w minutach: " & "</td>" & "<td>" & Me.txt_Czas_Trwania.Value & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Opis problemu: " & "</td>" & "<td>" & Me.txt_Opis_Utrudnienia.Value & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Wpływ na SVL: " & "</td>" & "<td>" & Wplyw_na_SVL & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Zgloszenie na Igozill-e: " & "</td>" & "<td>" & Zgloszenie_na_Igozilli & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Zgloszenie do HD Banku: " & "</td>" & "<td>" & ZgLoszenie_do_HD_Banku & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Nr. Buga: " & "</td>" & "<td>" & Me.txt_nr_Buga.Value & "</td>" & "</tr>" & _
+"<tr>" & "<td>" & "Nr. SD: " & "</td>" & "<td>" & Me.txt_nr_SD.Value & "</td>" & "</tr>" & _
+"</table>" & "</body>" & _
+"<A HREF=""https://reporting2016ccprod.bank.ad.pkobp.pl/reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"">Wykaz wszystkich raportów TU</A>" & _
+"<p>MAIL WYGENEROWANY AUTOMATYCZNIE NIE ODPOWIADAJ NA NIEGO</p>" & _
+"</html>"
+.Display
+End With
+
+'Memory cleanup
+Set OLMail = Nothing
+Set OLApp = Nothing
+
+End Sub
+
+    
+  
 
 
 
