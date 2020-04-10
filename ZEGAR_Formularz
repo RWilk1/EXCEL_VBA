@@ -10,6 +10,7 @@
 ' Zmienna wskażnikowa informująca o wystąpieniu błędu
 Public Czy_Blad As Integer
 ''''''''''''''''''''''''''''''''''
+
 Private Sub CommandButton1_Click()
 
 Czy_Blad = 0
@@ -51,20 +52,38 @@ End Sub
 
 Private Sub UserForm_Initialize()
 
-txt_godz_start.Text = Mid(Now(), 12, 2)
-txt_minuta_start.Text = Mid(Now(), 15, 2)
+' Wartości default-owe
+Me.txt_godz_start.Text = Mid(Now(), 12, 2)
+Me.txt_minuta_start.Text = Mid(Now(), 15, 2)
+    
+Me.SpinButton1.Value = Mid(Now(), 12, 2)
+Me.SpinButton2.Value = Mid(Now(), 15, 2)
     
 End Sub
 
 Private Sub SpinButton1_Change()
     
-    txt_godz_start.Text = SpinButton1.Value
-    
+    If Me.SpinButton1.Value = 24 Then
+        Me.txt_godz_start.Value = 0
+        Me.SpinButton1.Value = 0
+    Else
+        Me.txt_godz_start.Value = Me.SpinButton1.Value
+    End If
+        
 End Sub
 
 Private Sub SpinButton2_Change()
     
-    txt_minuta_start.Text = SpinButton2.Value
+    If SpinButton2.Value = 60 And Me.txt_godz_start.Value < 23 Then
+        Me.txt_minuta_start.Value = 0
+        Me.txt_godz_start.Value = txt_godz_start.Value + 1
+        Me.SpinButton2.Value = 0
+    ElseIf Me.txt_godz_start.Value = 23 And Me.SpinButton2.Value = 60 Then
+        Me.txt_minuta_start.Value = 0
+        Me.SpinButton2.Value = 0
+    Else
+        Me.txt_minuta_start.Value = SpinButton2.Value
+    End If
     
 End Sub
 
@@ -119,6 +138,7 @@ If Me.Start_Koniec.Value = 1 Then
 End If
 
 End Function
+
 
 
 
