@@ -27,6 +27,7 @@ txt_Uzytkownik
 
 lst_Lista_Awarii
 
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Public Data_Start As Date
 Public Data_Koniec As Date
@@ -35,9 +36,11 @@ Dim cnn As New ADODB.Connection
 Dim rst As New ADODB.Recordset
 Dim Sql_Query As String
 Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP1836SQL1;trusted_connection=yes;DATABASE=CKD_Raportowa"
-Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
+'Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
+Const Tabela_Danych_SQL As String = "Aplikacja_TSUE.Tabl_App_Awarie" ' Tabela testowa
+Const Tabl_Danych_Grupy_Email As String = "Aplikacja_TSUE.Grupy_Mailowe" ' Tabela testowa
 Const Arkusz_Danych_EXCEL As String = "Baza_Awarie"
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''
 ' Uruchamianie aplikacji
@@ -65,7 +68,7 @@ End If
 
 ' Sprawdzanie, czy przycisk USUŃ nie zostal naciśnięty przez przypadek
 ' Komunikat z potwierdzeniem zamiaru usunięcia awarii
-Potwierdzenie = MsgBox("Czy na pewno chcesz usunąć ten rekord?", vbYesNo + vbQuestion)
+Potwierdzenie = MsgBox("Czy na pewno chcesz usunąć ten rekord?", vbYesNo + vbQuestion, "POTWIERDZENIE")
 If Potwierdzenie = vbNo Then
     Exit Sub
 End If
@@ -85,7 +88,7 @@ Private Sub cmd_Zapisz_Nowa_Awarie_Click()
 ' Sprawdzanie, czy przycisk save nie zostal naciśnięty przez przypadek
 If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
     MsgBox "Żeby zapisać nową awarię / utrudnienie zaznacz rodzaj problemu" & vbNewLine & _
-            "przycisk: Awaria lub Utrudnienie", vbCritical
+            "przycisk: Awaria lub Utrudnienie", vbCritical, "BRAK DANYCH"
     Exit Sub
 End If
 
@@ -113,7 +116,7 @@ Private Sub cmd_Tryb_Click()
 If Me.cmd_Tryb.Caption = "TRYB DODAWANIA" Then
 
     If Me.txt_ID.Value = "" Then
-        MsgBox "Żeby coś zmodyfikować musisz najpier wybrać jakąś awarie", vbCritical
+        MsgBox "Żeby coś zmodyfikować musisz najpier wybrać jakąś awarie", vbCritical, "BRAK DANYCH"
         Exit Sub
     End If
     
@@ -167,6 +170,8 @@ Private Sub img_StartDate_Click()
 ' Zmienna przechowująca date wejściową, do której można się cofnąć
 Data_Start = Me.txt_Start_Date2.Value
 
+' W przyadku gdy w kalendarzu nic nie zostanie wybrane
+On Error Resume Next
 ' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
 Me.txt_Start_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
 ' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
@@ -189,6 +194,8 @@ Private Sub img_EndDate_Click()
 ' Zmienna przechowująca date wejściową, do której można się cofnąć
 Data_Koniec = Me.txt_End_Date2.Value
 
+' W przyadku gdy w kalendarzu nic nie zostanie wybrane
+On Error Resume Next
 ' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
 Me.txt_End_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
 ' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
@@ -234,7 +241,7 @@ Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Value
 ' Kontrola wpisywanych dat
 If CDate(Data_Godz_Start) > CDate(Data_Godz_Koniec) Then
     MsgBox "Wpisana data początkowa jest póżniejsza od daty końcowej!!!" & vbCrLf _
-        & "Wybierz poprawną datę", vbCritical
+        & "Wybierz poprawną datę", vbCritical, "BŁĘDNE DANE"
     ' Jeśli błędan data to powrót do wartości wejściowej
     Me.txt_Start_Date2.Value = Format(Data_Start, "YYYY-MM-DD")
     Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
@@ -255,7 +262,7 @@ Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Value
 
 If CDate(Data_Godz_Koniec) < CDate(Data_Godz_Start) Then
     MsgBox "Wpisana data końcowa jest wcześniejsza od daty początkowej!!!" & vbCrLf _
-        & "Wybierz poprawną datę", vbCritical
+        & "Wybierz poprawną datę", vbCritical, "BŁĘDNE DANE"
     ' Jeśli błędan data to powrót do wartości wejściowej
     Me.txt_End_Date2.Value = Format(Data_Koniec, "YYYY-MM-DD")
     Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
@@ -283,16 +290,19 @@ If Me.txt_Koniec_Godz.Text = "" Then
     Me.txt_Koniec_Godz.Text = CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
 End If
 ''''''''''''''''''''''''''''''''''''''''''''''''
-
-Dim Data_Godz_Start As Variant
-Dim Data_Godz_Koniec As Variant
+Dim Data_Godz_Start As Date
+Dim Data_Godz_Koniec As Date
 Dim Czas_trw_Utrud As Variant
 
 ' tworzenie z tych dat jednej zmiennej "datowej"
 Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Text
 Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Text
   
-Czas_trw_Utrud = DateDiff("n", CDate(Data_Godz_Start), CDate(Data_Godz_Koniec))
+Debug.Print Data_Godz_Start
+Debug.Print Data_Godz_Koniec
+  
+'Czas_trw_Utrud = DateDiff("n", CDate(Data_Godz_Start), CDate(Data_Godz_Koniec))
+Czas_trw_Utrud = DateDiff("n", Data_Godz_Start, Data_Godz_Koniec)
 
 ' Długość trwania utrudnienia w minutach
 Me.txt_Czas_Trwania.Value = Czas_trw_Utrud
@@ -685,14 +695,14 @@ End Sub
 Private Sub cmd_Raport_w_RS_Click()
 
 Dim Link As String
-Link = "https://reporting2016ccprod.bank.ad.pkobp.pl/reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"
+Link = "https://reporting2016ccprod.bank.ad.pkobp.pl/Reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"
 
 On Error GoTo msg
 ActiveWorkbook.FollowHyperlink Address:=Link, NewWindow:=True
 Exit Sub
 
 msg:
-MsgBox "Nie udało się otworzyć raportu - jakiś błąd :(", vbCritical
+MsgBox "Nie udało się otworzyć raportu - jakiś błąd :(", vbCritical, "BŁĄD"
 
 End Sub
 
@@ -702,11 +712,12 @@ Dim sh As Worksheet
 Set sh = ThisWorkbook.Sheets("Adresy_Mailowe")
 
 'Call Czyszczenie_Tabeli
+sh.Range("A2:D100").Clear
 
 ' Pobieranie nowych danych
 Dim Sql_Query As String
 Sql_Query = "SELECT Adres_Email ,Opis ,Data_Ostat_Modyf ,Osoba_Dokon_Ostat_Modyf " & _
-            "FROM cod.Grupy_Mailowe " & _
+            "FROM " & Tabl_Danych_Grupy_Email & " " & _
             "WHERE Ukrywanie_Rekordu <> 1 " & _
             "ORDER BY Data_Ostat_Modyf DESC"
 
@@ -734,7 +745,7 @@ For i = 0 To Me.lst_Lista_Adresow_Email.ListCount - 1
 Next
 
 If Wybrane_Adr_Maile = "" Then
-    MsgBox "Musisz wybrać jakiś adres mail-owy adresata", vbInformation
+    MsgBox "Musisz wybrać jakiś adres mail-owy adresata", vbInformation, "BRAK ADRESU"
     Exit Sub
 End If
 
@@ -757,7 +768,7 @@ If lr = 1 Then lr = 2
 With Me.lst_Lista_Adresow_Email
     .ColumnCount = 2
     .ColumnHeads = True
-    .ColumnWidths = "140;140"
+    .ColumnWidths = "140;200"
     .RowSource = sh.Name & "!A2:B" & lr
 End With
 
@@ -775,7 +786,7 @@ Call Wybrane_Adr_Mailowe
 ' Sprawdzanie, czy jakaś awaria został już wybrana
 If Me.opt_Awaria.Value = False And Me.opt_Utrudnienie.Value = False Then
     MsgBox "Żeby wysłać maila z info o nowej awarii zaznacz rodzaj problemu" & vbNewLine & _
-    "lub wybierz jakąś z listy", vbCritical
+    "lub wybierz jakąś z listy", vbCritical, "BRAK DANYCH"
     Exit Sub
 End If
 
@@ -842,7 +853,7 @@ With OLMail
 "th {background-color: #000000;color: white;}" & _
 "</style>" & "</head>" & "<body>" & _
 "<h1>INFORMACJA O PROBLEMIE</h1>" & _
-"<table>" & _
+"<table style=width:100%" & _
 "<tr>" & "<th>PROBLEM</th>" & "<th>OPIS</th>" & "</tr>" & _
 "<tr>" & "<td>" & "Rodzaj problemu: " & "</td>" & "<td>" & Rodzaj_Problemu & "</td>" & "</tr>" & _
 "<tr>" & "<td>" & "Planowana data i godzina rozpoczęcia: " & "</td>" & "<td>" & Data_Godz_Start & "</td>" & "</tr>" & _
@@ -855,7 +866,7 @@ With OLMail
 "<tr>" & "<td>" & "Nr. Buga: " & "</td>" & "<td>" & Me.txt_nr_Buga.Value & "</td>" & "</tr>" & _
 "<tr>" & "<td>" & "Nr. SD: " & "</td>" & "<td>" & Me.txt_nr_SD.Value & "</td>" & "</tr>" & _
 "</table>" & "</body>" & _
-"<A HREF=""https://reporting2016ccprod.bank.ad.pkobp.pl/reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"">Wykaz wszystkich raportów TU</A>" & _
+"<A HREF=""https://reporting2016ccprod.bank.ad.pkobp.pl/Reports/report/COD_Raporty_PROD/Aplikacje/Aplikacja_Awarie/1_Lista_Awarii"">Wykaz wszystkich awarii / problemów TU</A>" & _
 "<p>MAIL WYGENEROWANY AUTOMATYCZNIE NIE ODPOWIADAJ NA NIEGO</p>" & _
 "</html>"
 .Display
@@ -866,6 +877,15 @@ Set OLMail = Nothing
 Set OLApp = Nothing
 
 End Sub
+
+Private Sub cmd_Form_Dodaw_Email_Click()
+    Nowe_Emaile.Show
+End Sub
+
+Private Sub cmd_Pomoc_Tech_Click()
+    Pomoc_Tech.Show
+End Sub
+
 
     
   
