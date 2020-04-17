@@ -7,6 +7,7 @@
 ' Start_Koniec - text box ukryty
 
 
+
 ' Zmienna wskażnikowa informująca o wystąpieniu błędu
 Public Czy_Blad As Integer
 ''''''''''''''''''''''''''''''''''
@@ -138,6 +139,7 @@ If Me.Start_Koniec.Value = 1 Then
 End If
 
 End Function
+
 
 
 
