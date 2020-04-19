@@ -1,0 +1,76 @@
+
+Private Sub txt_Rok_Change()
+
+If txt_Miesiac = "" Then
+    txt_Miesiac = DatePart("m", Now())
+    Exit Sub
+End If
+
+Dim Aktualna_Data As Date
+Aktualna_Data = txt_Rok & "-" & txt_Miesiac & "-" & "01"
+spn_Dzien.Max = The_Last_Day_of_Current_Month(Aktualna_Data)
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+txt_Rok = Format(Now(), "YYYY")
+txt_Miesiac = Format(Now(), "MM")
+txt_Dzien = Format(Now(), "DD")
+
+spn_Rok = Year(Now())
+spn_Miesiac = Month(Now())
+spn_Dzien = Day(Now())
+
+End Sub
+
+Private Sub cmd_Zamknij_Form_Click()
+    Unload Me
+End Sub
+
+Private Sub spn_Dzien_Change()
+
+txt_Dzien = spn_Dzien
+    
+If Len(txt_Dzien) = 1 Then
+    txt_Dzien = "0" & txt_Dzien
+End If
+    
+End Sub
+
+Private Sub spn_MIesiac_Change()
+    
+txt_Miesiac = spn_Miesiac
+
+If Len(txt_Miesiac) = 1 Then
+    txt_Miesiac = "0" & txt_Miesiac
+End If
+    
+End Sub
+
+Private Sub spn_Rok_Change()
+    txt_Rok = spn_Rok
+End Sub
+
+Private Sub txt_Miesiac_Change()
+
+Dim Aktualna_Data As Date
+Aktualna_Data = txt_Rok & "-" & txt_Miesiac & "-" & "01"
+spn_Dzien.Max = The_Last_Day_of_Current_Month(Aktualna_Data)
+
+End Sub
+
+Private Function The_Last_Day_of_Current_Month(Selected_Date As Date) As Integer
+
+Dim Selected_Month As Integer
+Selected_Month = DatePart("m", DateAdd("m", 1, Selected_Date))
+
+Dim Current_Year As Integer
+Current_Year = DatePart("yyyy", Now())
+
+Dim Base_Data As Date
+Base_Data = Format(Current_Year & "-" & Selected_Month & "-" & "01", "YYYY-MM-DD")
+
+The_Last_Day_of_Current_Month = DatePart("d", DateAdd("d", -1, Base_Data))
+
+End Function
