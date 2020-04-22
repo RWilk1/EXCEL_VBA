@@ -6,13 +6,11 @@
 ' CommandButton1
 ' Start_Koniec - text box ukryty
 
-
-
 ' Zmienna wskażnikowa informująca o wystąpieniu błędu
 Public Czy_Blad As Integer
 ''''''''''''''''''''''''''''''''''
 
-Private Sub CommandButton1_Click()
+Private Sub cmd_Zapis_Godz_Click()
 
 Czy_Blad = 0
 
@@ -51,14 +49,44 @@ End If
 
 End Sub
 
+Private Sub txt_godz_start_Change()
+    If Len(txt_godz_start) = 1 Then
+        txt_godz_start = "0" & txt_godz_start
+    End If
+End Sub
+Private Sub txt_minuta_start_Change()
+    If Len(txt_minuta_start) = 1 Then
+        txt_minuta_start = "0" & txt_minuta_start
+    End If
+End Sub
+
 Private Sub UserForm_Initialize()
 
 ' Wartości default-owe
-Me.txt_godz_start.Text = Mid(Now(), 12, 2)
-Me.txt_minuta_start.Text = Mid(Now(), 15, 2)
-    
-Me.SpinButton1.Value = Mid(Now(), 12, 2)
-Me.SpinButton2.Value = Mid(Now(), 15, 2)
+'Me.txt_godz_start.Text = Mid(Now(), 12, 2)
+'Me.txt_minuta_start.Text = Mid(Now(), 15, 2)
+'Me.SpinButton1.Value = Mid(Now(), 12, 2)
+'Me.SpinButton2.Value = Mid(Now(), 15, 2)
+
+Me.Start_Koniec.Value = App_Awarie.txt_Czy_Godz_Start_Koniec.Value
+
+Debug.Print Me.Start_Koniec.Value
+
+' W przypadku ustalania godziny początkowej
+If Me.Start_Koniec.Value = 0 Then
+    Me.txt_godz_start.Value = Mid(App_Awarie.txt_Start_Godz.Value, 1, 2)
+    Me.txt_minuta_start.Value = Mid(App_Awarie.txt_Start_Godz.Value, 4, 2)
+    Me.SpinButton1.Value = Mid(App_Awarie.txt_Start_Godz.Value, 1, 2)
+    Me.SpinButton2.Value = Mid(App_Awarie.txt_Start_Godz.Value, 4, 2)
+End If
+
+' W przypadku ustalania godziny początkowej
+If Me.Start_Koniec.Value = 1 Then
+    Me.txt_godz_start.Value = Mid(App_Awarie.txt_Koniec_Godz.Value, 1, 2)
+    Me.txt_minuta_start.Value = Mid(App_Awarie.txt_Koniec_Godz.Value, 4, 2)
+    Me.SpinButton1.Value = Mid(App_Awarie.txt_Koniec_Godz.Value, 1, 2)
+    Me.SpinButton2.Value = Mid(App_Awarie.txt_Koniec_Godz.Value, 4, 2)
+End If
     
 End Sub
 
@@ -139,6 +167,7 @@ If Me.Start_Koniec.Value = 1 Then
 End If
 
 End Function
+
 
 
 
