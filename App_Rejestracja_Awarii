@@ -31,12 +31,14 @@ lst_Lista_Awarii
 
 Public Data_Start As Date
 Public Data_Koniec As Date
+Public Godzina_Start_Koniec As Integer
 Public Error As Integer
 Dim cnn As New ADODB.Connection
 Dim rst As New ADODB.Recordset
 Dim Sql_Query As String
 Const Conn_String As String = "Provider=sqloledb;DRIVER={SQL Server};SERVER=MP1836SQL1;trusted_connection=yes;DATABASE=CKD_Raportowa"
 'Const Tabela_Danych_SQL As String = "cod.Tabl_App_Awarie"
+'Const Tabl_Danych_Grupy_Email As String = "cod.Grupy_Mailowe"
 Const Tabela_Danych_SQL As String = "Aplikacja_TSUE.Tabl_App_Awarie" ' Tabela testowa
 Const Tabl_Danych_Grupy_Email As String = "Aplikacja_TSUE.Grupy_Mailowe" ' Tabela testowa
 Const Arkusz_Danych_EXCEL As String = "Baza_Awarie"
@@ -159,21 +161,33 @@ Private Sub txt_End_Date_Change2()
     Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
 End Sub
 Private Sub txt_Start_Godz_Change()
+
+    If Len(Me.txt_Start_Godz.Value) = 4 Then
+        Me.txt_Start_Godz.Value = "0" & Me.txt_Start_Godz.Value
+    End If
+    
     Call Oblicz_Dlug_Trw_Utrud
+    
 End Sub
 Private Sub txt_Koniec_Godz_Change()
+
+    If Len(Me.txt_Koniec_Godz.Value) = 4 Then
+        Me.txt_Koniec_Godz.Value = "0" & Me.txt_Koniec_Godz.Value
+    End If
+
     Call Oblicz_Dlug_Trw_Utrud
+    
 End Sub
 
 Private Sub img_StartDate_Click()
 
-' Zmienna przechowująca date wejściową, do której można się cofnąć
+' Zmienna przechowująca date wejściową, która będzie odtwarzana w razie wystąpienia błędu
 Data_Start = Me.txt_Start_Date2.Value
 
-' W przyadku gdy w kalendarzu nic nie zostanie wybrane
+' ' W przyadku gdy w kalendarzu nic nie zostanie wybrane, czyli zostanie zamknięty przed wybraniem daty
 On Error Resume Next
 ' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
-Me.txt_Start_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
+Me.txt_Start_Date2.Value = Format(Calendar.Selected_Date(), "YYYY-MM-DD")
 ' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
 Me.txt_Start_Date.Value = Format(Me.txt_Start_Date2.Value, "DD-MM-YYYY")
  
@@ -194,10 +208,10 @@ Private Sub img_EndDate_Click()
 ' Zmienna przechowująca date wejściową, do której można się cofnąć
 Data_Koniec = Me.txt_End_Date2.Value
 
-' W przyadku gdy w kalendarzu nic nie zostanie wybrane
+' W przyadku gdy w kalendarzu nic nie zostanie wybrane, czyli zostanie zamknięty przed wybraniem daty
 On Error Resume Next
 ' Nowo wybrana data w standardowym formacie która będzie wykorzystywana w obliczeniach
-Me.txt_End_Date2.Value = CDate(Format(Calendar.Selected_Date(), "YYYY-MM-DD"))
+Me.txt_End_Date2.Value = Format(Calendar.Selected_Date(), "YYYY-MM-DD")
 ' Data w polskim formacie, to co się wyświetla w TextBox-ie dla użytkownika
 Me.txt_End_Date.Value = Format(Me.txt_End_Date2.Value, "DD-MM-YYYY")
 
@@ -214,16 +228,32 @@ Call Oblicz_Dlug_Trw_Utrud
 End Sub
 
 Private Sub img_Start_Godz_Click()
-    
-zegar.Start_Koniec.Value = 0
-zegar.Show
-    
+    Me.txt_Czy_Godz_Start_Koniec.Value = 0
+    zegar.Show
 End Sub
 
 Private Sub img_Koniec_Godz_Click()
+    Me.txt_Czy_Godz_Start_Koniec.Value = 1
+    zegar.Show
+End Sub
+
+Private Sub txt_End_Date2_Change()
     
-zegar.Start_Koniec.Value = 1
-zegar.Show
+    If txt_End_Date2 = "" Then
+        txt_End_Date2 = Format(Data_Koniec, "DD-MM-YYYY")
+    End If
+    
+    Call Oblicz_Dlug_Trw_Utrud
+    
+End Sub
+
+Private Sub txt_Start_Date2_Change()
+
+    If txt_Start_Date2 = "" Then
+        txt_Start_Date2 = Format(Data_Start, "DD-MM-YYYY")
+    End If
+    
+    Call Oblicz_Dlug_Trw_Utrud
     
 End Sub
 
@@ -290,8 +320,8 @@ If Me.txt_Koniec_Godz.Text = "" Then
     Me.txt_Koniec_Godz.Text = CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
 End If
 ''''''''''''''''''''''''''''''''''''''''''''''''
-Dim Data_Godz_Start As Date
-Dim Data_Godz_Koniec As Date
+Dim Data_Godz_Start As Variant
+Dim Data_Godz_Koniec As Variant
 Dim Czas_trw_Utrud As Variant
 
 ' tworzenie z tych dat jednej zmiennej "datowej"
@@ -339,6 +369,8 @@ End With
 
 End Sub
 
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ODŚWIEŻANIE GŁÓWNEGO LISTBOX-a Z AWARIAMI
 ' Podwójne kliknięcie na elemencie ListBox
 Private Sub lst_Lista_Awarii_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
 
@@ -425,16 +457,16 @@ Private Sub Wartosci_Domyslne()
 ' Ustawianie wartosci domyślne
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Daty wykorzystywane do obliczeń (z normalnym formatowaneim)
-Me.txt_Start_Date2.Value = Date
-Me.txt_End_Date2.Value = Date
+' Daty wykorzystywane do obliczeń (z normalnym anglosaskim formatowaniem)
+Me.txt_Start_Date2.Value = VBA.Date()
+Me.txt_End_Date2.Value = VBA.Date()
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-' Daty prezentowane
+' Daty prezentowane użytkownikowi w formularzu, w typowo polskim formacie
 Me.txt_Start_Date.Value = Format(Date, "DD-MM-YYYY")
 Me.txt_End_Date.Value = Format(Date, "DD-MM-YYYY")
 
-' Godziny
+' Generowanie aktualnych godzin jako warości domyślne
 Me.txt_Start_Godz.Text = _
     CStr(Mid(Now(), 12, 2)) & ":" & CStr(Mid(Now(), 15, 2))
 Me.txt_Koniec_Godz.Text = _
@@ -502,8 +534,8 @@ End If
 ' tworzenie z tych dat jednej zmiennej "datowej"
 Dim Data_Godz_Start As Variant
 Dim Data_Godz_Koniec As Variant
-Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Text
-Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Text
+Data_Godz_Start = Me.txt_Start_Date2.Value & " " & Me.txt_Start_Godz.Value
+Data_Godz_Koniec = Me.txt_End_Date2.Value & " " & Me.txt_Koniec_Godz.Value
 
 ' Wpływ na SVL
 Dim Wplyw_na_SVL
@@ -885,6 +917,11 @@ End Sub
 Private Sub cmd_Pomoc_Tech_Click()
     Pomoc_Tech.Show
 End Sub
+
+Private Sub cmd_Zamknij_Click()
+    Unload Me
+End Sub
+
 
 
     
