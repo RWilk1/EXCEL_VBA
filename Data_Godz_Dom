@@ -1,4 +1,43 @@
 
+
+Private Sub spn_Godzina_Change()
+
+    If spn_Godzina < 24 Then
+        txt_Godzina = spn_Godzina
+    Else
+       spn_Godzina = 0
+       txt_Godzina = spn_Godzina
+    End If
+    
+    If Len(txt_Godzina) = 1 Then
+        txt_Godzina = 0 & txt_Godzina
+    End If
+    
+End Sub
+
+Private Sub spn_Minuta_Change()
+
+    If spn_Minuta < 60 Then
+        txt_Minuta = spn_Minuta
+    Else
+       spn_Minuta = 0
+       txt_Godzina = txt_Godzina + 1
+       
+       If txt_Godzina > 23 Then
+            txt_Godzina = 0
+            spn_Godzina = 0
+       End If
+       
+       spn_Godzina = txt_Godzina
+       txt_Minuta = spn_Minuta
+    End If
+    
+    If Len(txt_Minuta) = 1 Then
+        txt_Minuta = 0 & txt_Minuta
+    End If
+    
+End Sub
+
 Private Sub txt_Rok_Change()
 
 If txt_Miesiac = "" Then
@@ -21,6 +60,12 @@ txt_Dzien = Format(Now(), "DD")
 spn_Rok = Year(Now())
 spn_Miesiac = Month(Now())
 spn_Dzien = Day(Now())
+
+txt_Godzina = DatePart("h", Now())
+spn_Godzina = DatePart("h", Now())
+
+txt_Minuta = DatePart("n", Now())
+spn_Minuta = DatePart("n", Now())
 
 End Sub
 
