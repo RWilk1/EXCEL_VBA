@@ -1,0 +1,316 @@
+Sub SendBasicEmail()
+
+' Early binding technic
+
+' Zmienna odwołująca się do elementów biblioteki Outlook-a
+' UWAGA: W przypadku braku ustawienia referencji do odpowiedniej biblioteki powinien pojawić się błąd: Compile error: User-defined type not defined
+Dim olApp As Outlook.Application
+    
+' Uruchomienie nowej instancji outlook-a, po uruchomieniu powinna zacząć ona działać w "tle"
+' UWAGA: działa tylko w czasie działania procedurki, potem znika
+Set olApp = New Outlook.Application
+    
+End Sub
+
+Sub SendBasicEmailAutoInstancing()
+
+' Early binding technic
+
+' Wywołanie instancji Outlook-a w krótszy sposób
+' Instancja Outlook-a powinna pojawić się w Task Managerze na czas wykonywania programu
+Dim olApp As New Outlook.Application
+
+' W przypadku gdy z jakiś dziwnych powodów instancja Outlook-a się nie uruchomi wówczas pojawi się komunikat o błędzie
+If olApp Is Nothing Then
+    MsgBox "Coś poszło nie tak - Outlook nie zadziałał", vbCritical, "PORAŻKA"
+End If
+
+End Sub
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' 3 sposób do odwoływania się do metod i funkcji biblioteki outlook-a,
+' nie trzeba w tym przypadku ustalać referencji do biblioteki outlook-a
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub SendBasicEmailCreateObject()
+
+' Late binding technic
+
+Dim olApp As Object
+Set olApp = CreateObject("Outlook.Application")
+
+End Sub
+
+' Procedurka wysyłająca prostego email-a
+Sub SendBasicEmail_2()
+
+Dim olApp As Outlook.Application
+Dim olEmail As Outlook.MailItem
+    
+Set olApp = New Outlook.Application
+Set olEmail = olApp.CreateItem(olMailItem)
+    
+' Tworzenie prostego, standardowego pustego emaila gotowego do wysłania
+' Format HTML
+
+' Najprostrzy sposób
+'olEmail.Display
+    
+With olEmail
+    .BodyFormat = olFormatHTML
+    .Display
+    ' W tym przypadku można pisać HTML-em, wiadomość razem z podpisem
+    .HTMLBody = "<H1>TESTYYYY</H1>" & "<br>" & .HTMLBody
+    
+'    .To = "test@pkobp.pl; test2@pkobp.pl"
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+
+    ' Dodawanie załączników, pierwszy przypadek to bardziej uniwersalna forma
+    .Attachments.Add Environ("UserProfile") & "\Desktop\MsgBox.docx"
+'    .Attachments.Add "C:\Users\S1612604\Desktop\MsgBox.docx"
+
+    ' Poniższa instrukcja od razu wysyła mail-a
+'    .Send
+'    .Body = "TESTYYYY"
+End With
+    
+    
+End Sub
+
+' Procedurka z late binding-iem
+Sub SendBasicEmail_LateBinding()
+
+' Używanie late bindingu powoduje, że nie trzeba ustawiać żadnej referencji do biblioteki aplikacji
+' ale w tym przypadku nie dostajemy żadnej pomocy ze strony IntelliSense-u
+
+Dim olApp As Object
+Dim olEmail As Object
+    
+Set olApp = CreateObject("Outlook.Application")
+Set olEmail = olApp.CreateItem(0) ' 0 to nr stałej w tym przypadku trzeba posługiwać się tylko numerami
+    
+With olEmail
+    .BodyFormat = 2 ' Posługujemy się numerami stałych a nie ich nazwami
+    .Display
+
+    .HTMLBody = "<H1>TESTYYYY</H1>" & "<br>" & .HTMLBody
+    .Attachments.Add Environ("UserProfile") & "\Desktop\MsgBox.docx"
+    
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+End With
+    
+End Sub
+
+' Wysyłanie bardziej skomplikowanego email-a
+Sub SendComplexEmail()
+
+Dim olApp As Outlook.Application
+Dim olEmail As Outlook.MailItem
+    
+Set olApp = New Outlook.Application
+Set olEmail = olApp.CreateItem(olMailItem)
+
+With olEmail
+    .BodyFormat = olFormatPlain
+    .Display
+
+    .Body = "Dear Someone" & vbNewLine & vbNewLine & GetMovieData
+
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+    
+End With
+    
+End Sub
+
+Function GetMovieData() As String
+
+Dim FilmColumn As Range
+Dim FilmRow As Range
+Dim r As Range
+Dim c As Range
+Dim str As String
+
+Arkusz2.Activate
+
+' Zapisywanie w zmiennej całej kolumny z wartościami
+Set FilmColumn = Range("A2", Range("A1").End(xlDown))
+
+For Each r In FilmColumn
+    
+    ' Zapisywanie w zmiennej całego kolejnego wiersza
+    Set FilmRow = Range(r, r.End(xlToRight))
+    
+    ' Pętla przechodząca przez każdą komórkę w wierszu
+    For Each c In FilmRow
+        ' Do zmiennej STRING będą kolejne przypisywane wszystkie wartości z zakresu i będą one rozdzielane TAB
+        str = str & c.Value
+        ' umieszczania separatora TAB jeżeli komórka nie znajduje się w ostatniej kolumnie
+        If c.Column < r.End(xlToRight).Column Then
+            str = str & vbTab
+        End If
+    Next c
+    
+    ' Jeśli komórka nie znajduje się w ostatnim wierszu wówczas wstawia się znak końca linii
+    If r.Row < Range("A1").End(xlDown).Row Then
+        str = str & vbNewLine
+    End If
+    
+Next r
+
+' Przypisywanie wartości do funkcji
+GetMovieData = str
+
+End Function
+
+' Inna wersja powyższego mailia i powyższej funkcji z HTML-em
+Sub SendComplexEmail_HTML()
+
+Dim olApp As Outlook.Application
+Dim olEmail As Outlook.MailItem
+    
+Set olApp = New Outlook.Application
+Set olEmail = olApp.CreateItem(olMailItem)
+
+With olEmail
+    .BodyFormat = olFormatHTML
+    .Display
+
+    .HTMLBody = "<p style=""color:blue;font-family:calibri"">Dear Someone</p>" & _
+            "<br><br>" & GetMovieData_HTML ' & .HTMLBody niestety pojawia się błąd jak prubuje wstawić podpis
+
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+End With
+    
+End Sub
+
+Function GetMovieData_HTML() As String
+
+Dim FilmColumn As Range
+Dim FilmRow As Range
+Dim r As Range
+Dim c As Range
+Dim str As String
+
+Arkusz2.Activate
+
+' Zapisywanie w zmiennej całej kolumny z wartościami
+Set FilmColumn = Range("A2", Range("A1").End(xlDown))
+
+str = "<table>"
+
+For Each r In FilmColumn
+    
+    str = str & "<tr>"
+    
+    ' Zapisywanie w zmiennej całego kolejnego wiersza
+    Set FilmRow = Range(r, r.End(xlToRight))
+    
+    ' Pętla przechodząca przez każdą komórkę w wierszu
+    For Each c In FilmRow
+        ' Do zmiennej STRING będą kolejne przypisywane wszystkie wartości z zakresu i będą one rozdzielane TAB
+        str = str & "<td>" & c.Value & "</td>"
+    Next c
+    
+    str = str & "</tr>"
+    
+Next r
+
+str = str & "</table>"
+
+' Przypisywanie wartości do funkcji
+GetMovieData_HTML = str
+
+End Function
+
+Function GetHeadHTML() As String
+
+    Dim str As String
+    str = "<head><style>" & vbNewLine
+    str = str & "p{color:blue;font-family:calibri;font-size:20px;}" & vbNewLine
+    str = str & "table{color:blue;font-family:calibri;font-size:20px;border:1px solid blue;}" & vbNewLine
+    str = str & "</style></head><body>"
+
+    GetHeadHTML = str
+    
+    Debug.Print GetHeadHTML
+
+End Function
+
+Sub SendComplexEmail_HTML_2()
+
+Dim olApp As Outlook.Application
+Dim olEmail As Outlook.MailItem
+    
+Set olApp = New Outlook.Application
+Set olEmail = olApp.CreateItem(olMailItem)
+
+With olEmail
+    .BodyFormat = olFormatHTML
+    .Display
+
+    .HTMLBody = GetHeadHTML & "<p>Dear Someone</p><br><br>" & _
+                GetMovieData_HTML & "</body>"
+
+
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+End With
+    
+End Sub
+
+' Przykład użycia funkcji WORD-a przy tworzeniu tabelki
+Sub SendEmail_Using_WordEditor()
+
+Dim olApp As Outlook.Application
+Dim olEmail As Outlook.MailItem
+Dim olInsp As Outlook.Inspector
+Dim wdDoc As Word.document
+    
+Set olApp = New Outlook.Application
+Set olEmail = olApp.CreateItem(olMailItem)
+
+With olEmail
+    .BodyFormat = olFormatRichText
+    .Display
+
+'    .HTMLBody = GetHeadHTML & "<p>Dear Someone</p><br><br>" & _
+'                GetMovieData_HTML & "</body>"
+
+'    Debug.Print StrConv(.RTFBody, vbUnicode) ' Niestety nie działa
+
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Movie report"
+    
+    Set olInsp = .GetInspector
+    Set wdDoc = olInsp.WordEditor ' i tu się zaczyna jakiś błąd :(
+    
+    wdDoc.Range.InsertBefore "Dear Someone" & vbNewLine & vbNewLine
+    
+    Worksheets("Arkusz1").Activate
+    Range("A1").CurrentRegion.Copy
+    wdDoc.Range(5, 5).Paste
+    
+End With
+    
+End Sub
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Highest Grossing Films of 2012				
+ID 	Title	Release Date 	Length	Genre
+1	Marvel's The Avengers	04/05/2012	143	Action
+2	The Dark Knight Rises	20/07/2012	165	Action
+3	The Hunger Games	23/03/2012	142	Adventure
+4	SkyFall	09/11/2012	143	Action
+5	The Hobbit: An Unexpected Journey	14/12/2012	169	Fantasy
+6	The Twilight Saga: Breaking Dawn Part 2	16/11/2012	116	Awful
+7	The Amazing Spider-Man	03/07/2012	136	Acton
+8	Brave	22/06/2012	93	Animation
+9	Ted	29/06/2012	112	Comedy
+10	Madagascar 3: Europe's Most Wanted	08/06/2012	93	Animation
+11	The Lorax	02/03/2012	86	Animation
+12	Wreck it Ralph	02/11/2012	101	Animation
+13	Lincoln	09/11/2012	150	Biography
+
