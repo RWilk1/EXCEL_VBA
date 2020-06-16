@@ -1,0 +1,73 @@
+
+Public m As OwlMail
+
+Sub CreateNewEmail()
+
+' Odwołania do nowo utworzonej klasy obiektów
+If Not m Is Nothing Then
+    MsgBox "You have an email to deal with already", vbCritical
+    m.Email.Display
+    Exit Sub
+End If
+
+
+Set m = New OwlMail
+
+With m.Email
+    .Display
+    .To = "rafal.wilk.2@pkobp.pl"
+    .Subject = "Test Events"
+    .Body = "Dear Someone,"
+End With
+
+End Sub
+
+' CLASS MODULE: OwlMail
+
+
+Private olApp As Outlook.Application
+Public WithEvents Email As Outlook.MailItem
+Private mailSent As Boolean
+
+
+Private Sub Class_Initialize()
+
+Set Email = olApp.CreateItem(olMailItem)
+mailSent = False
+
+End Sub
+
+Private Sub Email_Close(Cancel As Boolean)
+
+    Dim CloseAndDiscard As VbMsgBoxResult
+
+    If mailSent = True Then
+        Exit Sub
+    End If
+
+    Email.GetInspector.WindowState = olMinimized
+    AppActivate Application.Caption, 5
+    
+
+    CloseAndDiscard = MsgBox("Close and discard?", vbYesNo + vbExclamation)
+
+    If CloseAndDiscard = vbYes Then
+        Email.Close olDiscard
+        Debug.Print "Owl Mail was close", Now
+    Else
+        Cancel = True
+        Email.Display
+        Exit Sub
+    End If
+        
+    Set m = Nothing
+    
+End Sub
+
+Private Sub Email_Send(Cancel As Boolean)
+    Debug.Print "Owl Mail was send", Now
+    mailSent = True
+    
+    Set m = Nothing
+    
+End Sub
