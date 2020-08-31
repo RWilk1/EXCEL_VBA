@@ -1,0 +1,425 @@
+' SHAPE-y
+
+' Nazwa arkusza
+' WiseOwlShapes(WiseOwl)
+
+' Tworzenie publicznego enumeratora
+' To chyba oznacza tworzenie stałych
+Public Enum NHSColours
+    NHSBlue = 12082688
+    NHSDarkBlue = 8859648
+    NHSPink = 7546286
+End Enum
+
+Sub Referencing_Shapes()
+
+Debug.Print WiseOwlShapes.Shapes.Count
+Debug.Print WiseOwlShapes.Shapes(1).Name
+
+'WiseOwlShapes.Shapes(1).Shadow = True
+'On Error Resume Next
+WiseOwlShapes.Shapes.Range(Array(1, 2, 3)).Select
+' Zmienianie kolorów shape-ów
+WiseOwlShapes.Shapes(1).Fill.ForeColor.RGB = rgbPapayaWhip
+
+Dim Item As Shape
+
+' Odwoływanie się do wszystkich kształtów w arkuszu
+For Each Item In WiseOwlShapes.Shapes
+    Debug.Print Item.Name
+Next Item
+
+End Sub
+
+' Odwoływanie się do shape-ów w zmiennej
+Sub UsingShapeVariable()
+
+Dim sh As Shape
+Set sh = WiseOwlShapes.Shapes("Zakladka1")
+
+sh.Fill.ForeColor.RGB = rgbHotPink
+
+End Sub
+
+Sub loopovershapes2()
+
+Dim i As Integer
+Debug.Print WiseOwlShapes.Shapes.Count
+
+For i = 1 To Sheets("WiseOwl").Shapes.Count
+    Debug.Print WiseOwlShapes.Shapes(i).Name
+Next i
+
+End Sub
+
+Sub CheckShapeDimensions()
+
+Dim sh As Shape
+Set sh = WiseOwlShapes.Shapes(1)
+
+Debug.Print sh.Left; sh.Top; sh.Width; sh.Height
+
+' zmiana wymiarów kształtów
+'sh.Left = sh.Left + 10
+'sh.Top = sh.Top + 10
+'sh.Width = sh.Width + 10
+'sh.Height = sh.Height + 10
+'
+'sh.Left = sh.Left - 10
+'sh.Top = sh.Top - 10
+'sh.Width = sh.Width - 10
+'sh.Height = sh.Height - 10
+
+' Inny sposób zmiany wymiarów shape-ów
+sh.Left = Range("B2").Left
+sh.Top = Range("B2").Top
+sh.Width = Range("B2:C3").Width
+sh.Height = Range("B2:C3").Height
+
+End Sub
+
+Sub DeleteSheetShape()
+
+Dim ws As Worksheet
+Set ws = ThisWorkbook.Sheets("WiseOwl")
+Dim sh As Shape
+
+For Each sh In WiseOwlShapes.Shapes
+'    sh.Delete
+    sh.Select
+Next sh
+
+End Sub
+
+' Dodawanie shape-ów
+Sub AddBasicShape()
+
+'WiseOwlShapes.Shapes.AddShape msoShapeHeart, 20, 20, 72, 72
+
+Dim sh As Shape
+Set sh = WiseOwlShapes.Shapes.AddShape(msoShapeHeart, 20, 20, 72, 72)
+
+' Zmiana koloru shape-a
+sh.Fill.ForeColor.RGB = rgbHotPink
+
+End Sub
+
+' EXCEL.jpg
+' C:\Users\Gwiazda_Smierci\Desktop
+Sub AddNewPicture()
+
+Debug.Print Environ("UserProfile")
+
+Dim sh As Shape
+
+Set sh = WiseOwlShapes.Shapes.AddPicture2( _
+            Filename:=Environ("UserProfile") & "\Desktop\EXCEL.jpg", _
+            LinkToFile:=msoFalse, _
+            SaveWithDocument:=msoCTrue, _
+            Left:=100, Top:=20, Width:=-1, Height:=-1, _
+            Compress:=msoPictureCompressTrue)
+
+' Zmiana rozmiarów picture-a
+sh.LockAspectRatio = msoTrue
+sh.Width = 100
+
+End Sub
+
+Sub AddNewButton()
+
+Dim sh As Shape
+Set sh = WiseOwlShapes.Shapes.AddFormControl(xlButtonControl, 50, 100, 200, 50)
+
+'sh.OnAction = "DeleteSheet1Shapes"
+
+End Sub
+
+Sub AddMultipleShapes()
+
+Dim sh As Shape
+Dim i As Integer
+Dim j As Integer
+
+Dim Shleft As Integer
+Dim ShTop As Integer
+
+Const ShWidth As Integer = 50
+Const ShHeight As Integer = 50
+
+For j = 0 To 3
+
+    ShTop = j * ShHeight
+
+    For i = 0 To 4
+        Shleft = i * ShWidth
+        Set sh = Arkusz1.Shapes.AddShape(msoShapeRectangle, Shleft, ShTop, ShWidth, ShHeight)
+    Next i
+
+Next j
+
+End Sub
+
+' Czyszczenie wszystkich shape-ów w aktywnym arkuszu
+Sub DeleteShapes2()
+
+Dim sh As Shape
+
+'For Each sh In ThisWorkbook.ActiveSheet.Shapes
+'    sh.Delete
+'Next sh
+
+' inny sposób usuwania wszystkich kształtów z arkusza
+ThisWorkbook.ActiveSheet.Shapes.SelectAll
+Selection.Delete
+
+End Sub
+
+' Dodawanie kształtów
+Sub DrawOneRectangle()
+
+ThisWorkbook.ActiveSheet.Shapes.AddShape msoShapeRectangle, 20, 20, 200, 100
+
+End Sub
+
+
+Sub ChangeFillColour()
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Dim s As Shape
+Set s = ThisWorkbook.ActiveSheet.Shapes(1)
+
+' Różne sposoby odwoływania się do kolorów
+s.Fill.ForeColor.RGB = 16711935
+s.Fill.ForeColor.RGB = ColorConstants.vbMagenta
+s.Fill.ForeColor.RGB = XlRgbColor.rgbAliceBlue
+s.Fill.ForeColor.RGB = RGB(0, 94, 184)
+
+' Poprzez używanie stworzonej poprzednim kroku enumeracji
+s.Fill.ForeColor.RGB = NHSColours.NHSBlues.Line = RGB(0, 94, 184)
+
+End Sub
+
+Sub ListSchemeColours()
+
+Dim s As Shape
+Dim i As Integer
+Dim x As Integer
+Dim y As Integer
+Dim sWidth As Integer
+Dim sHeight As Integer
+Dim sCols As Integer
+
+Call DeleteShapes2
+
+sWidth = 20
+sHeight = 20
+sCols = 8
+
+' Printowanie palety kolorów
+For i = 0 To 80
+    x = ((i Mod sCols) * sWidth)
+    y = Int(i / sCols) * sHeight
+    Set s = ThisWorkbook.ActiveSheet.Shapes.AddShape(msoShapeRectangle, x, y, sWidth, sHeight)
+    s.Fill.ForeColor.SchemeColor = i
+Next i
+
+End Sub
+
+Sub ClearFill()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+' Czyszczenie wypełnienia koloru shape-a
+s.Fill.Visible = msoFalse
+
+' Żeby to cofnąć należy zmienić właściwość na true
+s.Fill.Visible = msoTrue
+s.Fill.Transparency = 0
+
+End Sub
+
+' Zmiana odcienia shape-a
+Sub ColourTints()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ThisWorkbook.ActiveSheet.Shapes(1)
+
+With s.Fill.ForeColor
+    .RGB = NHSBlue
+    .Brightness = -1
+    .Brightness = -0.5
+    .Brightness = 0
+    .Brightness = 0.5
+    .Brightness = 1
+    
+    ' Lub w inny sposób
+    .TintAndShade = -1
+    .TintAndShade = -0.5
+    .TintAndShade = 0
+    .TintAndShade = 0.5
+    .TintAndShade = 1
+    
+End With
+
+End Sub
+
+Sub ChangeBackColour()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+With s.Fill
+    .Patterned msoPatternLargeGrid
+    .ForeColor.RGB = rgbLimeGreen
+    .BackColor.RGB = rgbHotPink
+End With
+
+End Sub
+
+Sub UseOneColourGradient()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+With s.Fill
+    .ForeColor.RGB = rgbBlueViolet
+    .OneColorGradient msoGradientDiagonalDown, 1, 1
+    .TwoColorGradient msoGradientHorizontal, 2
+    .GradientStops.Insert rgbRed, 0.25
+    .GradientStops.Insert rgbGreen, 0.5
+    .GradientStops.Insert rgbBlue, 0.75
+End With
+
+End Sub
+
+' Zmiana obramowania shape-u
+Sub LineFormatting()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+With s.Line
+    .ForeColor.RGB = rgbRed
+    .DashStyle = msoLineDash
+    .Weight = 2.5
+End With
+
+End Sub
+
+Sub GlowFormatting()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+s.Line.Visible = msoFalse
+
+With s.Glow
+    .Color.RGB = rgbHotPink
+    .Transparency = 0.25
+    .Radius = 15
+End With
+
+With s.SoftEdge
+    .Type = msoSoftEdgeType1
+    .Radius = 6
+End With
+
+End Sub
+
+Sub ReflectionFormatting()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+' Brak obramowania
+s.Line.Visible = msoFalse
+
+With s.Reflection
+    .Transparency = 0.25
+    .Size = 75
+    .Offset = 3
+    .Blur = 10
+End With
+
+End Sub
+
+Sub ShadowFormatting()
+
+Dim s As Shape
+
+Call DeleteShapes2
+Call DrawOneRectangle
+
+Set s = ActiveSheet.Shapes(1)
+
+' Brak obramowania
+s.Line.Visible = msoFalse
+
+With s.Shadow
+    .Style = msoShadowStyleOuterShadow
+    .Type = msoShadow25
+    .Blur = 5
+    .OffsetX = 8
+    .OffsetY = 8
+    .Transparency = 0.25
+    .ForeColor.RGB = RGB(150, 150, 150)
+End With
+
+End Sub
+
+' Kopiowanie shape-ów
+Sub CopyFormatting()
+
+Dim s1 As Shape
+Dim s2 As Shape
+
+Set s1 = ActiveSheet.Shapes(1)
+Set s2 = ActiveSheet.Shapes.AddShape(msoShapeRectangle, 20, 250, 200, 100)
+
+s1.PickUp
+s2.Apply
+
+End Sub
+
+' Używanie default-owych schematów kolorystycznych
+Sub UsingDefaultFormats()
+
+Dim s2 As Shape
+Set s2 = ActiveSheet.Shapes.AddShape(msoShapeRectangle, 20, 250, 200, 100)
+
+s2.ShapeStyle = msoLineStylePreset13
+
+End Sub
+
+
