@@ -422,4 +422,53 @@ s2.ShapeStyle = msoLineStylePreset13
 
 End Sub
 
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Kolorowanie obramowań
+
+
+Private Sub Label1_Click()
+Call info
+End Sub
+
+Private Sub Label1_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+
+Call Move_in
+'Call Move_out
+
+End Sub
+
+Private Sub Label2_MouseMove(ByVal Button As Integer, ByVal Shift As Integer, ByVal X As Single, ByVal Y As Single)
+    Call Move_out
+End Sub
+
+Private Sub Move_in()
+
+Dim s As Shape
+Set s = ThisWorkbook.ActiveSheet.Shapes("Test_1")
+
+s.Line.Visible = msoTrue
+
+With s.Line
+    .ForeColor.RGB = rgbRed
+    .DashStyle = msoLineSolid
+    .Weight = 2.5
+End With
+
+End Sub
+
+Private Sub Move_out()
+
+Dim s As Shape
+Set s = ThisWorkbook.ActiveSheet.Shapes("Test_1")
+
+s.Line.Visible = msoFalse
+
+'With s.Line
+'    .ForeColor.RGB = rgbBlue
+'    .DashStyle = msoLineDash
+'    .Weight = 2.5
+'End With
+
+End Sub
+
 
