@@ -1,4 +1,5 @@
 
+
 Option Explicit
 
 Private Sub UserForm_Initialize()
@@ -59,8 +60,6 @@ Call Highlight_Entry_Day
 
 ' Wywołanie formularza kalendarza
 Calendar.Show
-
-
 
 If VBA.TypeName(TargetControl) = "Range" Or VBA.TypeName(TargetControl) = "Textbox" Then
     TargetControl.Value = Me.TextBox1.Value
