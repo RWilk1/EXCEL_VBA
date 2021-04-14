@@ -1,0 +1,1113 @@
+
+
+' Obiekty bazodanowe wykorzystywane a aplikacji
+' schemat: Rekrutacja
+' - Rekrutacja.Projekty_Rekrutacyjne
+' - Rekrutacja.v_Projekty_Rekrutacyjne
+' - Rekrutacja.Kandydaci
+' - Rekrutacja.Statusy_Rekrutacji_Opis
+' - Rekrutacja.v_Kandydaci_1
+' - Rekrutacja.v_Kandydaci_Etap_3
+
+
+' Zmienna reprezentująca połączenie
+Dim cnn As New ADODB.Connection
+' Zmienna przechowująca zaimportowan zestaw rekordów z SQL Server-a
+Dim rst As New ADODB.Recordset
+
+' Stała tekstowa, która będzie przechowywać zdefiniowany ciąg połączenia do SQL Server-a
+Const Conn_String As String = _
+        "Provider=sqloledb;" & _
+        "DRIVER={SQL Server};" & _
+        "SERVER=MP1836SQL1;" & _
+        "trusted_connection=yes;" & _
+        "DATABASE=CKD_Raportowa"
+                               
+Dim SQL_Query As String
+'''''''''''''''''''''''''''''''''''''
+
+
+Sub Import_Proj_Rekrut_z_SQL_Server()
+
+Application.ScreenUpdating = False
+
+' Pomiar wydajności wykonywania procedurki
+Dim Start As Variant
+Dim Koniec As Variant
+Dim sh5 As Worksheet
+Set sh5 = ThisWorkbook.Sheets("Wydajnosc_Procedur")
+Start = VBA.Timer
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Projekty_Rekrut")
+
+' Czyszczenie dotychczasowych danych
+sh.Range("A2:H10000").Clear
+
+' Ustalanie numeru kadrowego użytkownika
+Dim nr_Kadrowy As String
+nr_Kadrowy = Environ("username")
+
+' Pobieranie tylko wpisów z grafika obejmujących wszystkie daty >= teraz
+SQL_Query = _
+"SELECT " & _
+    "ID," & _
+    "Nazwa_Projektu," & _
+    "Poczatek_Projektu," & _
+    "Koniec_Projektu," & _
+    "Liczba_Pracow_do_Rekrut," & _
+    "Liczba_Kandydatow_Przypis," & _
+    "Data_ostatn_aktualiz," & _
+    "Osoba_dokon_aktualiz " & _
+"FROM Rekrutacja.v_Projekty_Rekrutacyjne " & _
+"ORDER BY Koniec_Projektu DESC"
+
+'Debug.Print SQL_Query
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania i pobraniem danych
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów
+With cnn
+    .ConnectionString = Conn_String
+    .CommandTimeout = 10
+    .Open
+End With
+
+' Otwieranie RecordSet-a i definiowanie parametrów
+With rst
+    .ActiveConnection = cnn
+    .Source = SQL_Query
+    .LockType = adLockReadOnly
+    .CursorType = adOpenForwardOnly
+    .Open
+End With
+
+' Użycie metody CopyFromRecordset do pobrania danych ze zmiennej rst do określonej lokalizacji danych
+sh.Range("A2").CopyFromRecordset rst
+
+' Jeśli nie było błędow to kończenie procedurki
+GoTo Koniec
+
+' W przypadku wystąpienia błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+' Gdy wystąpił błąd z wykonaniem tego zapytania to pojawia się komunikat informujący o naturze błędu
+msg:
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Nie udało się pobrać danych z tabeli z grafikami pracowników:" & vbCrLf & _
+    "Coś poszło nie tak :(" & vbCrLf & _
+    "Spróbuj ponownie, a jeśli to nie pomoże to" & vbCrLf & _
+    "skontaktuj się z osobą z pomocy technicznej" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Import_Proj_Rekrut_z_SQL_Server" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, vbCritical, Title:="NIEUDANA PRÓBA IMPORTU DANYCH GRAFIKOWYCH"
+
+    ' Informacja o wystąpieniu błędu z połączeniem z bazą danych
+    sh.Range("M2").Value = 1
+    cnn.Close
+    Exit Sub
+    
+Koniec:
+
+sh.Range("M2").Value = 0
+cnn.Close
+
+' Pokazywanie liczby sekund trwania procedurki
+Koniec = VBA.Timer()
+sh5.Range("A2").Value = "Import_Proj_Rekrut_z_SQL_Server"
+sh5.Range("B2").Value = Koniec - Start
+
+Application.ScreenUpdating = True
+
+' Interakcje_z_SQL_Server.Import_Proj_Rekrut_z_SQL_Server
+
+End Sub
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' INSERT DO TABELI W SQL SERVER
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub Insert_do_SQL_Server()
+
+Dim Nazwa_Projektu As String
+Dim Data_Start As Variant
+Dim Data_Koniec As Variant
+Dim Liczba_Prac_do_Rekrut As Integer
+Dim Osoba_dokon_aktualiz As String
+Dim Data_ostatn_aktualiz As Variant
+
+Nazwa_Projektu = VBA.Mid(form_Etap1.txt_Nazwa_Projektu.Value, 1, 100)
+Data_Start = form_Etap1.txt_Data_Start.Value
+Data_Koniec = form_Etap1.txt_Data_Koniec.Value
+Liczba_Prac_do_Rekrut = form_Etap1.txt_Liczba_Prac.Value
+Osoba_dokon_aktualiz = Environ("username")
+Data_ostatn_aktualiz = VBA.Now()
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"INSERT INTO Rekrutacja.Projekty_Rekrutacyjne (" & _
+    "Nazwa_Projektu," & _
+    "Poczatek_Projektu," & _
+    "Koniec_Projektu," & _
+    "Liczba_Pracow_do_Rekrut," & _
+    "Osoba_dokon_aktualiz," & _
+    "Data_ostatn_aktualiz) " & _
+"VALUES ('" & _
+    Nazwa_Projektu & "','" & _
+    Data_Start & "','" & _
+    Data_Koniec & "','" & _
+    Liczba_Prac_do_Rekrut & "','" & _
+    Osoba_dokon_aktualiz & "'," & _
+    "GETDATE())"
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia
+cnn.Close
+
+' Komunikat o sukcesie
+MsgBox "Wielki Sukces!!!" & vbCrLf & _
+    "Udało się zapisać dane!!!", _
+    vbInformation, Title:="UDANY ZAPIS DANYCH"
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+ElseIf Err.Description = "UWAGA DANE SIĘ DUBLUJĄ" Then
+    Blad_Systemowy = "UWAGA: Prubujesz nadpisać propozycje zmiam do grafika na dzień " & Data & ". Żeby móc zapisać nową propozycję zmiany usuń najpierw istniejącą i zapisz zmianę ponownie."
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Insert_do_SQL_Server" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA ZAPISU DANYCH"
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Proj_Rekrut.Insert_do_SQL_Server
+
+End Sub
+
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' DELETE
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub Delete_do_SQL_Server()
+
+' ID projektu do usunięcia
+Dim ID As Integer
+ID = form_Etap1.txt_ListIndex_ID.Value
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"DELETE FROM Rekrutacja.Projekty_Rekrutacyjne " & _
+"WHERE ID = " & ID
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia
+cnn.Close
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+ElseIf Err.Description = "UWAGA DANE SIĘ DUBLUJĄ" Then
+    Blad_Systemowy = "UWAGA: Prubujesz nadpisać propozycje zmiam do grafika na dzień " & Data & ". Żeby móc zapisać nową propozycję zmiany usuń najpierw istniejącą i zapisz zmianę ponownie."
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Delete_do_SQL_Server" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA USUNIĘCIA DANYCH"
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Proj_Rekrut.Delete_do_SQL_Server
+
+End Sub
+
+
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' INSERT NOWYCH KANDYDATÓW NA KONSULTANTÓW
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub Insert_Kandydatow_do_SQL_Server()
+
+Dim Imie As String
+Dim Nazwisko As String
+Dim nr_Telefonu As String
+Dim Email As String
+Dim Planowane_Miejsce_Pracy As String
+Dim Projekt_Rekrutacyjny As String
+Dim Data_Kontaktu As Variant
+Dim Data_Godz_Interview As Variant
+Dim Etap_Rekrutacji As Integer
+Dim Osoba_Dodajaca As String
+Dim Data_Dodania As Variant
+
+
+Imie = VBA.Mid(form_Etap2.txt_Imie.Value, 1, 100)
+Nazwisko = form_Etap2.txt_Nazwisko.Value
+nr_Telefonu = VBA.Replace(form_Etap2.txt_Nr_Telefonu.Value, " ", "")
+Email = VBA.Replace(form_Etap2.txt_Email.Value, " ", "")
+Planowane_Miejsce_Pracy = form_Etap2.cmb_Miejsce_Pracy.Value
+Projekt_Rekrutacyjny = form_Etap2.txt_ComboBox_Value2.Value
+Data_Kontaktu = DatePart("yyyy", form_Etap2.txt_Data_Start.Value) & "-" & DatePart("m", form_Etap2.txt_Data_Start.Value) & "-" & DatePart("d", form_Etap2.txt_Data_Start.Value)
+Etap_Rekrutacji = 1
+Osoba_Dodajaca = Environ("username")
+Data_Kontaktu = form_Etap2.txt_Data_Start.Value
+Data_Interview = DatePart("yyyy", form_Etap2.txt_Data_Koniec.Value) & "-" & DatePart("m", form_Etap2.txt_Data_Koniec.Value) & "-" & DatePart("d", form_Etap2.txt_Data_Koniec.Value)
+Godz_Interview = form_Etap2.txt_Pelna_Godz_Interview.Value & " " & txt_Pelna_Godz_Interview
+Data_Dodania = DatePart("yyyy", VBA.Date()) & "-" & DatePart("m", VBA.Date()) & "-" & DatePart("d", VBA.Date()) & " " & DatePart("h", VBA.Now()) & ":" & DatePart("n", VBA.Now()) & ":" & DatePart("s", VBA.Now())
+
+'Debug.Print Data_Kontaktu
+'Debug.Print Data_Interview
+'Debug.Print Godz_Interview
+'Debug.Print Data_Dodania
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"INSERT INTO Rekrutacja.Kandydaci (" & _
+    "Imie," & _
+    "Nazwisko," & _
+    "telefon," & _
+    "email," & _
+    "oddzial," & _
+    "ID_Projekt_Rekrutacyjny," & _
+    "status_rekrutacji," & _
+    "Data_Dodania," & _
+    "Data_Interview, Godz_Interview," & _
+    "Osoba_Dokonujaca_Aktual," & _
+    "Data_Ostatniej_Aktual) " & _
+"VALUES ('" & _
+    Imie & "','" & _
+    Nazwisko & "','" & _
+    nr_Telefonu & "','" & _
+    Email & "','" & _
+    Planowane_Miejsce_Pracy & "','" & _
+    Projekt_Rekrutacyjny & "','" & _
+    Etap_Rekrutacji & "','" & _
+    Data_Kontaktu & "','" & _
+    Data_Interview & "','" & Godz_Interview & "','" & _
+    Osoba_Dodajaca & "','" & _
+    Data_Dodania & "')"
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia
+cnn.Close
+
+' Komunikat o sukcesie
+MsgBox "Wielki Sukces!!!" & vbCrLf & _
+    "Udało się zapisać dane!!!", _
+    vbInformation, Title:="UDANY ZAPIS DANYCH"
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+ElseIf Err.Description = "UWAGA DANE SIĘ DUBLUJĄ" Then
+    Blad_Systemowy = "UWAGA: Prubujesz nadpisać propozycje zmiam do grafika na dzień " & Data & ". Żeby móc zapisać nową propozycję zmiany usuń najpierw istniejącą i zapisz zmianę ponownie."
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Insert_Kandydatow_do_SQL_Server" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA ZAPISU DANYCH"
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Server.Insert_Kandydatow_do_SQL_Server
+
+End Sub
+
+
+Sub Import_Kandydatow_z_SQL_Server()
+
+Application.ScreenUpdating = False
+
+' Pomiar wydajności wykonywania procedurki
+Dim Start As Variant
+Dim Koniec As Variant
+Dim sh5 As Worksheet
+Set sh5 = ThisWorkbook.Sheets("Wydajnosc_Procedur")
+Start = VBA.Timer
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Kandydaci")
+
+' Czyszczenie dotychczasowych danych
+sh.Range("A2:Q100000").Clear
+
+' Ustalanie numeru kadrowego użytkownika
+Dim nr_Kadrowy As String
+nr_Kadrowy = Environ("username")
+
+' Pobieranie tylko wpisów z grafika obejmujących wszystkie daty >= teraz
+SQL_Query = _
+"SELECT " & _
+"ID, Imie, Nazwisko, telefon, email," & _
+"oddzial, Nazwa_Projektu,Opis_statusow_rekrutacji," & _
+"Data_Dodania,Data_Interview,Godz_Interview,Osoba_Dokonujaca_Aktual," & _
+"Data_Ostatniej_Aktual,ID_Projekt_Rekrutacyjny,status_rekrutacji " & _
+"FROM Rekrutacja.v_Kandydaci_Etap_1 " & _
+"ORDER BY Data_Ostatniej_Aktual DESC"
+
+'Debug.Print SQL_Query
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania i pobraniem danych
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów
+With cnn
+    .ConnectionString = Conn_String
+    .CommandTimeout = 10
+    .Open
+End With
+
+' Otwieranie RecordSet-a i definiowanie parametrów
+With rst
+    .ActiveConnection = cnn
+    .Source = SQL_Query
+    .LockType = adLockReadOnly
+    .CursorType = adOpenForwardOnly
+    .Open
+End With
+
+' Użycie metody CopyFromRecordset do pobrania danych ze zmiennej rst do określonej lokalizacji danych
+sh.Range("A2").CopyFromRecordset rst
+
+' Jeśli nie było błędow to kończenie procedurki
+GoTo Koniec
+
+' W przypadku wystąpienia błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+' Gdy wystąpił błąd z wykonaniem tego zapytania to pojawia się komunikat informujący o naturze błędu
+msg:
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Nie udało się pobrać danych z tabeli z grafikami pracowników:" & vbCrLf & _
+    "Coś poszło nie tak :(" & vbCrLf & _
+    "Spróbuj ponownie, a jeśli to nie pomoże to" & vbCrLf & _
+    "skontaktuj się z osobą z pomocy technicznej" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Import_Kandydatow_z_SQL_Server" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, vbCritical, Title:="NIEUDANA PRÓBA IMPORTU DANYCH GRAFIKOWYCH"
+
+    ' Informacja o wystąpieniu błędu z połączeniem z bazą danych
+    sh.Range("R2").Value = 1
+    cnn.Close
+    Exit Sub
+    
+Koniec:
+
+sh.Range("R2").Value = 0
+cnn.Close
+
+' Pokazywanie liczby sekund trwania procedurki
+Koniec = VBA.Timer()
+sh5.Range("A3").Value = "Import_Kandydatow_z_SQL_Server"
+sh5.Range("B3").Value = Koniec - Start
+
+Application.ScreenUpdating = True
+
+' Interakcje_z_SQL_Server.Import_Kandydatow_z_SQL_Server
+
+End Sub
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' DELETE nowo zarejestrowanych kandydatów1
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub Delete_Kandydaci_Etap2()
+
+' ID kandydata do usunięcia
+Dim ID As Integer
+ID = form_Etap2.txt_ListIndex_ID.Value
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"DELETE FROM Rekrutacja.Kandydaci " & _
+"WHERE ID = " & ID
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia
+cnn.Close
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Delete_Kandydaci_Etap2" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA USUNIĘCIA DANYCH"
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Server.Delete_Kandydaci_Etap2
+
+End Sub
+
+
+Sub Import_Kandydatow_z_SQL_Server_Etap3()
+
+Application.ScreenUpdating = False
+
+' Pomiar wydajności wykonywania procedurki
+Dim Start As Variant
+Dim Koniec As Variant
+Dim sh5 As Worksheet
+Set sh5 = ThisWorkbook.Sheets("Wydajnosc_Procedur")
+Start = VBA.Timer
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Kandydaci_Etap3")
+
+' Czyszczenie dotychczasowych danych
+sh.Range("A2:Q100000").Clear
+
+' Pobieranie tylko wpisów z grafika obejmujących wszystkie daty >= teraz
+SQL_Query = _
+"SELECT ID, " & _
+"Imie, " & _
+"Nazwisko, " & _
+"oddzial, " & _
+"Nazwa_Projektu, " & _
+"Data_Interview, " & _
+"Godz_Interview, " & _
+"Opis_statusow_rekrutacji, " & _
+"Rodzaj_Umowy, " & _
+"Wymiar_Etatu, " & _
+"dyspozycyjność," & _
+"planowana_data_rozp_szkol," & _
+"Uzasadnienie_Oceny," & _
+"ID_Projekt_Rekrutacyjny, " & _
+"status_rekrutacji " & _
+"FROM Rekrutacja.v_Kandydaci_Etap_3 " & _
+"ORDER BY data_interview DESC, Godz_Interview DESC"
+
+'Debug.Print SQL_Query
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania i pobraniem danych
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów
+With cnn
+    .ConnectionString = Conn_String
+    .CommandTimeout = 10
+    .Open
+End With
+
+' Otwieranie RecordSet-a i definiowanie parametrów
+With rst
+    .ActiveConnection = cnn
+    .Source = SQL_Query
+    .LockType = adLockReadOnly
+    .CursorType = adOpenForwardOnly
+    .Open
+End With
+
+' Użycie metody CopyFromRecordset do pobrania danych ze zmiennej rst do określonej lokalizacji danych
+sh.Range("A2").CopyFromRecordset rst
+
+' Jeśli nie było błędow to kończenie procedurki
+GoTo Koniec
+
+' W przypadku wystąpienia błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+' Gdy wystąpił błąd z wykonaniem tego zapytania to pojawia się komunikat informujący o naturze błędu
+msg:
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Nie udało się pobrać danych z tabeli z grafikami pracowników:" & vbCrLf & _
+    "Coś poszło nie tak :(" & vbCrLf & _
+    "Spróbuj ponownie, a jeśli to nie pomoże to" & vbCrLf & _
+    "skontaktuj się z osobą z pomocy technicznej" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Import_Kandydatow_z_SQL_Server_Etap3" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, vbCritical, Title:="NIEUDANA PRÓBA IMPORTU DANYCH GRAFIKOWYCH"
+
+    ' Informacja o wystąpieniu błędu z połączeniem z bazą danych
+    sh.Range("R2").Value = 1
+    cnn.Close
+    Exit Sub
+    
+Koniec:
+
+sh.Range("R2").Value = 0
+cnn.Close
+
+' Pokazywanie liczby sekund trwania procedurki
+Koniec = VBA.Timer()
+sh5.Range("A4").Value = "Import_Kandydatow_z_SQL_Server_Etap3"
+sh5.Range("B4").Value = Koniec - Start
+
+Application.ScreenUpdating = True
+
+' Interakcje_z_SQL_Server.Import_Kandydatow_z_SQL_Server_Etap3
+
+End Sub
+
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' UPDATE - etap 3
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Sub UPDATE_Kandydaci_Etap3()
+
+' ID kandydata do update-u
+Dim ID As Integer
+ID = form_Etap3.txt_ListIndex_Value.Value
+
+Dim Status_Rekrutacji As String
+Dim Rodzaj_Umowy As String
+Dim Wymiar_Etatu As String
+Dim Dyspozycyjnosc_Od As String
+Dim Data_Rozp_Szkolenia As String
+Dim Uzasadnienie As String
+Dim Uzytkownik As String
+
+Status_Rekrutacji = form_Etap3.txt_Stan_Rekrutacji_ID.Value
+Rodzaj_Umowy = form_Etap3.txt_Rodzaj_Umowy_Value.Value
+Wymiar_Etatu = form_Etap3.txt_Wymiar_Etatu_Value.Value
+Dyspozycyjnosc_Od = form_Etap3.txt_Data_Start.Value
+Data_Rozp_Szkolenia = form_Etap3.txt_Data_Koniec.Value
+Uzasadnienie = form_Etap3.txt_Uzasad_Oceny.Value
+Uzytkownik = Environ("username")
+
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tej instrukcji
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"UPDATE Rekrutacja.Kandydaci " & _
+"SET status_rekrutacji = " & "'" & Status_Rekrutacji & "'" & _
+",Rodzaj_Umowy = " & "'" & Rodzaj_Umowy & "'" & _
+",Wymiar_Etatu = " & "'" & Wymiar_Etatu & "'" & _
+",dyspozycyjność = " & "'" & Dyspozycyjnosc_Od & "'" & _
+",planowana_data_rozp_szkol = " & "'" & Data_Rozp_Szkolenia & "'" & _
+",Uzasadnienie_Oceny = " & "'" & Uzasadnienie & "'" & _
+",Osoba_Dokonujaca_Aktual = " & "'" & Uzytkownik & "'" & _
+",Data_Ostatniej_Aktual = GETDATE() " & _
+"WHERE ID = " & "'" & ID & "'"
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia jeśli jesli UPDATE przebiegl pomyslnie
+cnn.Close
+
+Blad = 0
+' Komunikat o sukcesie
+MsgBox "Wielki Sukces!!!" & vbCrLf & _
+    "Udało się zapisać dane!!!", _
+    vbInformation, Title:="UDANY ZAPIS DANYCH"
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: UPDATE_Kandydaci_Etap3" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA ZAPISU DANYCH"
+             
+    Blad = 1
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Server.UPDATE_Kandydaci_Etap3
+
+End Sub
+
+
+'>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+' Zapisywanie decyzji kandydatów, którzy zostali pozytywnie ocenieni po interview
+'>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Sub UPDATE_Kandydaci_Etap4()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Etap4")
+
+' ID kandydata do update-u
+Dim ID As Integer
+ID = sh.Range("A2").Value
+
+If VBA.Replace(ID, " ", "") = "" Then
+    Exit Sub
+End If
+
+Dim Status_Rekrutacji As Integer
+Dim Powod_Rezygnacji As String
+Dim Powod_Inny As String
+Dim Uzytkownik As String
+
+'If form_Etap4b.cmb_Decyzja.Value = "AKCEPTACJA" Then
+'    Status_Rekrutacji = 5
+'ElseIf form_Etap4b.cmb_Decyzja.Value = "REZYGNACJA" Then
+'    Status_Rekrutacji = 4
+'End If
+
+' Decyzja dotycząca przyjęcia oferty pracy
+If sh.Range("A5").Value = "AKCEPTACJA" Then
+    Status_Rekrutacji = 5
+ElseIf sh.Range("A5").Value = "REZYGNACJA" Then
+    Status_Rekrutacji = 4
+End If
+
+' Powód rezygnacji
+Powod_Rezygnacji = sh.Range("A8").Value
+Powod_Inny = sh.Range("A11").Value
+Uzytkownik = Environ("username")
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tej instrukcji
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów połączenia
+With cnn
+    .ConnectionString = Conn_String
+    .ConnectionTimeout = 10
+    .Open
+End With
+
+' Wprowadzanie insert-ów do bazy danych
+SQL_Query = _
+"UPDATE Rekrutacja.Kandydaci " & _
+"SET status_rekrutacji = " & "'" & Status_Rekrutacji & "'" & _
+",przyczyna_konca_etapu3  = " & "'" & Powod_Rezygnacji & "'" & _
+",przyczyna_konca_etapu3_inna = " & "'" & Powod_Inny & "'" & _
+",Osoba_Dokonujaca_Aktual = " & "'" & Uzytkownik & "'" & _
+",Data_Ostatniej_Aktual = GETDATE() " & _
+"WHERE ID = " & "'" & ID & "'"
+
+'Debug.Print SQL_Query
+
+' Wykonanie zapytania
+cnn.Execute SQL_Query
+    
+' Zamknięcie połączenia jeśli jesli UPDATE przebiegl pomyslnie
+cnn.Close
+
+Blad = 0
+
+' Komunikat o sukcesie
+MsgBox "Wielki Sukces!!!" & vbCrLf & _
+    "Udało się zapisać dane!!!", _
+    vbInformation, Title:="UDANY ZAPIS DANYCH"
+
+Exit Sub
+
+' W przypadku wystąpienie jakiegoś błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Coś jest nie tak z wpisanymi przez ciebie danymi" & vbCrLf & _
+    "lub jest jakiś problem z bazą danych" & vbCrLf & _
+    "Niestety nie udało się zapisać danych :(" & vbCrLf & _
+    "Sprawdź czy wartości są poprawne a następnie sprubuje ponownie" & vbCrLf & _
+    "Jeśli to nie pomoże skontaktuj się z pomocą techniczną" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: UPDATE_Kandydaci_Etap4" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, _
+    vbCritical, Title:="NIEUDANA PRÓBA ZAPISU DANYCH"
+             
+    Blad = 1
+                   
+cnn.Close
+
+' Interakcje_z_SQL_Server.UPDATE_Kandydaci_Etap4
+
+End Sub
+
+
+
+
+
+
+Sub Import_Kandydatow_z_SQL_Server_Etap4()
+
+Application.ScreenUpdating = False
+
+' Pomiar wydajności wykonywania procedurki
+Dim Start As Variant
+Dim Koniec As Variant
+Dim sh5 As Worksheet
+Set sh5 = ThisWorkbook.Sheets("Wydajnosc_Procedur")
+Start = VBA.Timer
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Etap4")
+
+' Czyszczenie dotychczasowych danych
+sh.Range("E2:Z10000").Clear
+
+
+SQL_Query = _
+"SELECT ID, " & _
+"Imie, " & _
+"Nazwisko, " & _
+"oddzial, " & _
+"Nazwa_Projektu, " & _
+"Opis_statusow_rekrutacji, " & _
+"Data_Interview, " & _
+"Godz_Interview, " & _
+"Rodzaj_Umowy, " & _
+"Wymiar_Etatu, " & _
+"dyspozycyjność," & _
+"planowana_data_rozp_szkol," & _
+"Uzasadnienie_Oceny," & _
+"ID_Projekt_Rekrutacyjny, " & _
+"status_rekrutacji, " & _
+"przyczyna_konca_etapu3, " & _
+"przyczyna_konca_etapu3_inna " & _
+"FROM Rekrutacja.v_Kandydaci_Etap_4 " & _
+"ORDER BY data_interview DESC, Godz_Interview DESC"
+
+'Debug.Print SQL_Query
+
+' Przechwytywanie jakiś potencialnych błędów związanych z wykonaniem tego zapytania i pobraniem danych
+On Error GoTo Error_Msg
+
+' Otwieranie połącznia z bazą danych SQL Server i definiowanie parametrów
+With cnn
+    .ConnectionString = Conn_String
+    .CommandTimeout = 10
+    .Open
+End With
+
+' Otwieranie RecordSet-a i definiowanie parametrów
+With rst
+    .ActiveConnection = cnn
+    .Source = SQL_Query
+    .LockType = adLockReadOnly
+    .CursorType = adOpenForwardOnly
+    .Open
+End With
+
+' Użycie metody CopyFromRecordset do pobrania danych ze zmiennej rst do określonej lokalizacji danych
+sh.Range("E2").CopyFromRecordset rst
+
+' Jeśli nie było błędow to kończenie procedurki
+GoTo Koniec
+
+' W przypadku wystąpienia błędu info o tym
+Error_Msg:
+
+Dim Blad_Systemowy As String
+
+' Poniższy komunikat błedu oznacza problem z blokowaniem połączenia z SQL Server poprzez VPN
+If Err.Description = "Nieprawidłowy atrybut ciągu połączenia" Then
+    Blad_Systemowy = "Prawdopodobnie łaczysz się z siecią bankową przez VPN, który jest blokowany przez Server Bazy Danych. Musisz złożyć wniosek o odblokowanie połączenia. Instrukcja jak to zrobić znajduje się na stronie internetowej aplikacji"
+Else
+    Blad_Systemowy = Err.Description
+End If
+
+' Gdy wystąpił błąd z wykonaniem tego zapytania to pojawia się komunikat informujący o naturze błędu
+msg:
+MsgBox "UWAGA!!!" & vbCrLf & _
+    "Nie udało się pobrać danych z tabeli z grafikami pracowników:" & vbCrLf & _
+    "Coś poszło nie tak :(" & vbCrLf & _
+    "Spróbuj ponownie, a jeśli to nie pomoże to" & vbCrLf & _
+    "skontaktuj się z osobą z pomocy technicznej" & vbCrLf & vbCrLf & _
+    "LOKALIZACJA WYSTĄPIENIA BŁĘDU" & vbCrLf & _
+    "Moduł: Interakcje_z_SQL_Server" & vbCrLf & _
+    "Procedurka: Import_Kandydatow_z_SQL_Server_Etap4" & vbCrLf & _
+    "Systemowy opis błędu:" & vbCrLf & Blad_Systemowy, vbCritical, Title:="NIEUDANA PRÓBA IMPORTU DANYCH GRAFIKOWYCH"
+
+    ' Informacja o wystąpieniu błędu z połączeniem z bazą danych
+    sh.Range("C2").Value = 1
+    cnn.Close
+    Exit Sub
+    
+Koniec:
+
+sh.Range("C2").Value = 0
+cnn.Close
+
+' Pokazywanie liczby sekund trwania procedurki
+Koniec = VBA.Timer()
+sh5.Range("A5").Value = "Import_Kandydatow_z_SQL_Server_Etap4"
+sh5.Range("B5").Value = Koniec - Start
+
+Application.ScreenUpdating = True
+
+' Interakcje_z_SQL_Server.Import_Kandydatow_z_SQL_Server_Etap4
+
+End Sub
+
+
+
+' Podświetlanie i odświetlanie wybranych przyciskow
+
+Sub Zaznacz(Nazwa_Shape As String)
+
+'Debug.Print Nazwa_Shape
+
+Dim s As Shape
+Set s = ThisWorkbook.Sheets("Apka").Shapes(Nazwa_Shape)
+
+' Jeżeli obiekt jest już podświetlony to niewykonywanie zaznaczania
+If s.Line.Visible = msoTrue Then
+    Exit Sub
+End If
+
+s.Line.Visible = msoTrue
+
+With s.Line
+    .ForeColor.RGB = rgbRed
+    .DashStyle = msoLineSolid
+    .Weight = 2.5
+End With
+
+End Sub
+
+Sub Odznacz(Nazwa_Shape As String)
+
+' Ochrona przed pojawiającym się jakimś parszywym błędem
+On Error Resume Next
+
+Dim s As Shape
+Set s = ThisWorkbook.Sheets("Apka").Shapes(Nazwa_Shape)
+
+' Jeżeli obiekt jest już odznaczony to niewykonywanie odznaczania
+If s.Line.Visible = msoFalse Then
+    Exit Sub
+End If
+
+s.Line.Visible = msoFalse
+
+On Error GoTo 0
+
+End Sub
+
+' >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+' URUCHAMIANIE I ZAMYKANIE SKOROSZYTU EXCEL
+
+Private Sub Workbook_Open()
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Apka2")
+
+sh.Activate
+sh.Select
+
+' Odblokowywanie komórek do edycji
+ThisWorkbook.Unprotect Password:="niewiemjakie"
+ThisWorkbook.Sheets("Apka").Unprotect Password:="niewiemjakie"
+
+
+
+' Blokowanie komórek do edycji
+ThisWorkbook.Protect Password:="niewiemjakie"
+ThisWorkbook.Sheets("Apka").Protect Password:="niewiemjakie", UserInterfaceOnly:=True
+
+End Sub
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+
+Dim sh As Worksheet
+Set sh = ThisWorkbook.Sheets("Apka2")
+
+
+'ThisWorkbook.Unprotect Password:="niewiemjakie"
+
+'With Application
+'    .WindowState = xlMaximized
+'    .DisplayFormulaBar = True
+'End With
+
+' Procedurka ustawia właściwość zapisu na TRUE chociaż sama nie zapisuje zmian
+' Dzięki temu przy zamykaniu nie pojawia się okienko pytające: Czy zapisać?
+ThisWorkbook.Saved = True
+
+End Sub
+
